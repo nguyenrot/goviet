@@ -1,5 +1,7 @@
 # GõViệt
 
+[![CI](https://github.com/nguyenrot/goviet/actions/workflows/ci.yml/badge.svg)](https://github.com/nguyenrot/goviet/actions/workflows/ci.yml)
+
 Bộ gõ tiếng Việt cho macOS theo phong cách **Unikey trên Windows**: app chạy nền
 trên menu bar, gõ được ngay trong mọi ứng dụng, chuyển Anh–Việt bằng phím tắt
 (mặc định **⌃⇧ Control+Shift**), không cần chuyển input source.
@@ -25,7 +27,10 @@ trên menu bar, gõ được ngay trong mọi ứng dụng, chuyển Anh–Việ
 
 ## Build & cài đặt
 
-Yêu cầu: Xcode, Rust (cargo), `brew install xcodegen cbindgen`.
+**Bản dựng sẵn:** tải file DMG ở [Releases](https://github.com/nguyenrot/goviet/releases),
+kéo app vào Applications (xem mục cài đặt bên dưới vì bản này chưa notarize).
+
+Build từ source — yêu cầu: Xcode, Rust (cargo), `brew install xcodegen cbindgen`.
 
 ```bash
 make install   # build core Rust + app, ký, cài vào /Applications, mở app
@@ -38,8 +43,8 @@ make watch     # xem log runtime
 này ký bằng cert Apple Development (chưa notarize), lần mở đầu bị Gatekeeper
 chặn — làm theo `HƯỚNG DẪN CÀI ĐẶT.txt` trong DMG (System Settings → Privacy
 & Security → "Open Anyway", hoặc `xattr -cr /Applications/GoViet.app`).
-Muốn phát hành rộng không bị chặn thì cần Apple Developer Program ($99/năm)
-+ Developer ID + notarization.
+Muốn phát hành rộng không bị chặn thì cần Apple Developer Program
+($99/năm) cùng Developer ID và notarization.
 
 Lần đầu chạy, macOS sẽ hỏi quyền **Accessibility** (System Settings →
 Privacy & Security → Accessibility → bật GoViet). Cấp xong là gõ được ngay,
@@ -56,7 +61,7 @@ trong `rust/engine/tests/corpus/known_limitations.tsv`.
 
 ## Cấu trúc
 
-```
+```text
 rust/engine   # engine thuần Rust: telex/vni, đặt dấu, validate âm tiết,
               # auto-restore, macros — 14 test suites data-driven (TSV)
 rust/ffi      # C ABI (cbindgen) → macos/Generated/goviet.h
