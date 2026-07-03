@@ -1,0 +1,31 @@
+name: GoViet
+options:
+  bundleIdPrefix: com.kynguyen
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+targets:
+  GoViet:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kynguyen.goviet
+        PRODUCT_NAME: GoViet
+        INFOPLIST_FILE: Resources/Info.plist
+        SWIFT_OBJC_BRIDGING_HEADER: $(PROJECT_DIR)/Sources/Bridge/GoViet-Bridging-Header.h
+        HEADER_SEARCH_PATHS: $(PROJECT_DIR)/Generated
+        LIBRARY_SEARCH_PATHS: $(PROJECT_DIR)/../rust/target/release
+        OTHER_LDFLAGS: "-lgoviet_ffi"
+        ENABLE_HARDENED_RUNTIME: NO
+        ENABLE_APP_SANDBOX: NO
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: ""
+        CODE_SIGNING_REQUIRED: NO
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        SWIFT_STRICT_CONCURRENCY: minimal

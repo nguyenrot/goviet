@@ -1,0 +1,5 @@
+build/
+rust/target/
+macos/GoViet.xcodeproj/
+macos/Generated/
+.DS_Store

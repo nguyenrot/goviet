@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+members = ["engine", "ffi"]
+
+[profile.release]
+lto = true
+codegen-units = 1

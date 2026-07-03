@@ -1,0 +1,12 @@
+[package]
+name = "goviet-ffi"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+name = "goviet_ffi"
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+goviet-engine = { path = "../engine" }

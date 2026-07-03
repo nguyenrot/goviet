@@ -1,0 +1,35 @@
+# English words must come out untouched (auto-restore on).
+# Rows ending in a space also exercise commit-restore at the word break.
+text	text
+add	add
+address	address
+boundary	boundary
+example	example
+keyboard	keyboard
+world	world
+water	water
+good	good
+for	for
+just	just
+software	software
+expression	expression
+function	function
+class	class
+first	first
+strong	strong
+string	string
+map	map
+window	window
+render	render
+user	user
+and	and
+are	are
+that	that
+what	what
+when	when
+you	you
+with	with
+work	work
+quit	quit
+new	new
+two 	two 

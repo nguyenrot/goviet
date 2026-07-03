@@ -1,0 +1,31 @@
+HƯỚNG DẪN CÀI ĐẶT GÕVIỆT
+=========================
+
+1. Kéo GoViet.app vào thư mục Applications (biểu tượng bên cạnh).
+
+2. Mở GoViet lần đầu:
+   Vì app chưa được notarize với Apple (bản dùng cá nhân), macOS sẽ
+   báo "không thể xác minh". Cách mở:
+
+   • macOS 15 trở lên (Sequoia/Tahoe):
+     - Mở app 1 lần để macOS ghi nhận (sẽ bị chặn)
+     - Vào System Settings → Privacy & Security, kéo xuống dưới
+     - Bấm "Open Anyway" cạnh dòng nói về GoViet → xác nhận
+
+   • Hoặc dùng Terminal (nhanh nhất):
+     xattr -cr /Applications/GoViet.app
+     open /Applications/GoViet.app
+
+3. Cấp quyền Accessibility khi app hỏi:
+   System Settings → Privacy & Security → Accessibility → bật GoViet.
+   Cấp xong là gõ được ngay, KHÔNG cần logout hay khởi động lại.
+
+4. Sử dụng:
+   • Icon "VI"/"EN" trên menu bar cho biết trạng thái
+   • Chuyển Anh–Việt: Ctrl+Shift (⌃⇧)
+   • Chuột phải icon → Cài đặt… để chỉnh kiểu gõ, gõ tắt, loại trừ app
+   • Icon hiện 🔒 = đang ở ô mật khẩu (bộ gõ tự tạm dừng, bình thường)
+
+Mẹo: từ tiếng Anh bị bỏ dấu nhầm (this→thí)? Nhấn ESC để khôi phục,
+hoặc gõ đúp phím dấu (tesst→test), hoặc Ctrl+Shift chuyển EN —
+GõViệt nhớ chế độ theo từng ứng dụng.
