@@ -8,7 +8,13 @@ DEST     := /Applications/GoViet.app
 VERSION  := $(shell /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' macos/Resources/Info.plist)
 DMG      := build/GoViet-$(VERSION).dmg
 
-.PHONY: core app test sign install dmg watch clean
+.PHONY: core app test sign install dmg watch clean icon
+
+# Tái tạo macos/Resources/AppIcon.icns từ scripts/make-icon.swift (đã commit
+# sẵn .icns — chỉ cần chạy lại khi đổi thiết kế icon).
+icon:
+	swift scripts/make-icon.swift build/AppIcon.iconset
+	iconutil -c icns build/AppIcon.iconset -o macos/Resources/AppIcon.icns
 
 core:
 	cd rust && cargo build --release
