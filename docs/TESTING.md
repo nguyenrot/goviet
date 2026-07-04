@@ -33,4 +33,7 @@ Câu mẫu: `Toàn thể nhân dân Việt Nam quyết tâm giữ vững độc 
   đã đổi, kiểm tra `codesign -dv /Applications/GoViet.app`.
 - **Smart switch**: tắt VN trong Chrome (⌃⇧), chuyển sang TextEdit (VN bật),
   quay lại Chrome → phải tự về EN.
+- **Phím tắt fn 🌐**: chọn "fn 🌐 (Globe)" trong Settings → nhấn-nhả fn phải
+  toggle VN/EN và KHÔNG mở bảng emoji/đổi nguồn nhập; giữ fn + mũi tên
+  (Page Up/Down) và fn + F-key phải hoạt động bình thường, không toggle.
 - **Khởi động cùng máy**: bật trong Settings → reboot → icon menu bar có mặt.

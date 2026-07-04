@@ -34,6 +34,11 @@ struct GeneralTab: View {
                     Text(chord.display).tag(chord.rawValue)
                 }
             }
+            if store.settings.hotkey == HotkeyDetector.Chord.fn.rawValue {
+                Text("Nếu phím 🌐 vẫn mở bảng emoji hoặc đổi nguồn nhập, hãy đặt “Nhấn phím 🌐 để” thành “Không làm gì” trong Cài đặt hệ thống → Bàn phím.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
             Toggle("Nhớ chế độ Anh/Việt theo từng ứng dụng", isOn: $store.settings.smartSwitch)
             Toggle("Khởi động cùng macOS", isOn: $store.settings.launchAtLogin)
             Spacer()

@@ -9,12 +9,14 @@ final class HotkeyDetector: @unchecked Sendable {
     enum Chord: String, Codable, CaseIterable {
         case ctrlShift = "ctrl_shift"
         case ctrlSpaceLikeCmdShift = "cmd_shift"
+        case fn = "fn"
         case none = "none"
 
         var display: String {
             switch self {
             case .ctrlShift: return "⌃⇧ (Control+Shift)"
             case .ctrlSpaceLikeCmdShift: return "⌘⇧ (Command+Shift)"
+            case .fn: return "fn 🌐 (Globe)"
             case .none: return "Tắt"
             }
         }
@@ -23,9 +25,20 @@ final class HotkeyDetector: @unchecked Sendable {
             switch self {
             case .ctrlShift: return [.maskControl, .maskShift]
             case .ctrlSpaceLikeCmdShift: return [.maskCommand, .maskShift]
+            case .fn: return [.maskSecondaryFn]
             case .none: return []
             }
         }
+    }
+
+    /// Keycode carried by the fn/Globe key's flagsChanged events (kVK_Function).
+    private static let fnKeycode: Int64 = 0x3F
+
+    struct FlagsVerdict {
+        var fire = false
+        /// Swallow the event so the system Globe action (input-source switch /
+        /// emoji picker) doesn't also fire on the same keypress.
+        var consume = false
     }
 
     private let lock = NSLock()
@@ -36,24 +49,27 @@ final class HotkeyDetector: @unchecked Sendable {
         lock.withLock { chord = c }
     }
 
-    /// Returns true when the toggle should fire (called from the tap thread).
-    func handleFlagsChanged(_ flags: CGEventFlags) -> Bool {
+    /// Decides whether the toggle fires and whether the event should be
+    /// swallowed (called from the tap thread on every flagsChanged event).
+    func handleFlagsChanged(_ flags: CGEventFlags, keycode: Int64) -> FlagsVerdict {
         lock.withLock {
-            guard chord != .none else { return false }
-            let relevant: CGEventFlags = [.maskCommand, .maskControl, .maskShift, .maskAlternate]
+            guard chord != .none else { return FlagsVerdict() }
+            let consume = chord == .fn && keycode == Self.fnKeycode
+            var relevant: CGEventFlags = [.maskCommand, .maskControl, .maskShift, .maskAlternate]
+            if chord == .fn { relevant.insert(.maskSecondaryFn) }
             let current = flags.intersection(relevant)
             if current == chord.flags {
                 armed = true
-                return false
+                return FlagsVerdict(fire: false, consume: consume)
             }
             if armed && current.isEmpty {
                 armed = false
-                return true
+                return FlagsVerdict(fire: true, consume: consume)
             }
             if !current.isSubset(of: chord.flags) {
                 armed = false
             }
-            return false
+            return FlagsVerdict(fire: false, consume: consume)
         }
     }
 

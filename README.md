@@ -4,7 +4,8 @@
 
 Bộ gõ tiếng Việt cho macOS theo phong cách **Unikey trên Windows**: app chạy nền
 trên menu bar, gõ được ngay trong mọi ứng dụng, chuyển Anh–Việt bằng phím tắt
-(mặc định **⌃⇧ Control+Shift**), không cần chuyển input source.
+(mặc định **⌃⇧ Control+Shift**, có thể đổi sang ⌘⇧ hoặc phím **fn 🌐** trong
+Cài đặt), không cần chuyển input source.
 
 **Kiến trúc:** Rust engine (thuần logic, unit-test đầy đủ) + Swift shell
 (CGEventTap + bơm phím có đánh dấu chống race).

@@ -94,10 +94,14 @@ final class EventTapManager {
             return Unmanaged.passUnretained(event)
 
         case .flagsChanged:
-            if HotkeyDetector.shared.handleFlagsChanged(event.flags) {
+            let verdict = HotkeyDetector.shared.handleFlagsChanged(
+                event.flags,
+                keycode: event.getIntegerValueField(.keyboardEventKeycode)
+            )
+            if verdict.fire {
                 onToggleHotkey?()
             }
-            return Unmanaged.passUnretained(event)
+            return verdict.consume ? nil : Unmanaged.passUnretained(event)
 
         case .keyDown:
             return handleKeyDown(proxy: proxy, event: event)
