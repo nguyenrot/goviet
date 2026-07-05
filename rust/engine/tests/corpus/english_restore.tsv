@@ -33,3 +33,11 @@ work	work
 quit	quit
 new	new
 two 	two 
+# "ie" English words (no đ, never transformed) must not be transformed.
+die	die
+pie	pie
+# A telex tone key on a plain-vowel cluster (s→sắc, r→hỏi) is the English
+# signature that gates the ie/ue transitional accept (regression: "user" → "ủe").
+use	use
+user	user
+dies	dies

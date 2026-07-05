@@ -35,3 +35,11 @@ dDoongf	Đồng
 ddi hocj	đi học
 casm own	cám ơn
 xin looxi	xin lỗi
+# đ + iê/uô: the đ transforms the word early, so the transitional "ie"/"uo"
+# prefix must not trip English auto-restore (regression: "ddieerm" → "ddieerm").
+ddieerm	điểm
+ddieenj	điện
+ddieeuf	điều
+ddieeuj	điệu
+dduooi	đuôi
+dduooir	đuổi

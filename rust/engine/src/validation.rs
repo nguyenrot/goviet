@@ -132,9 +132,25 @@ pub fn valid_prefix(letters: &[Letter], tone: Tone) -> bool {
         if rest.is_empty() {
             return true;
         }
-        // Transitional state: "ưo" becomes "ươ" as soon as the next letter
-        // arrives (tuwong → tưo → tươn), so accept it as a prefix.
+        // "ưo" horns into "ươ" as soon as the next letter lands (tuwong → tưo
+        // → tươn), so accept it as a prefix.
         if rest == "ưo" {
+            return true;
+        }
+        // Plain-vowel diphthong runs that a following keystroke completes into
+        // a real rhyme: "ie/ye/ue/uye" gain their ê on the next "e" (ddieer →
+        // điêr → điểm), "uo" its ô (dduooi → đuôi). These must be valid
+        // prefixes or, once the word is already transformed (e.g. the đ in
+        // "điểm"), English auto-restore fires wrongly — which is why bare
+        // "tiên" worked but "điểm" came out "ddieerm".
+        //
+        // Gate on tone == None: a real diphthong is still toneless at this
+        // stage (the tone lands after ê/ô forms). English collisions instead
+        // arrive via a telex tone key on the plain vowel — "user" reaches "ue"
+        // only because "s" toned "u" to "ú" — so a set tone means "not a
+        // Vietnamese diphthong", and we let the restore proceed. valid_full
+        // rejects these regardless, so English commit-restore is unaffected.
+        if tone == Tone::None && matches!(rest, "ie" | "ye" | "ue" | "uye" | "uo") {
             return true;
         }
         RHYMES.iter().any(|r| {
