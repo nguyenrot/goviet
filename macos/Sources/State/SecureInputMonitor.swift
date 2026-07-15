@@ -12,8 +12,8 @@ final class SecureInputMonitor {
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
             let secure = IsSecureEventInputEnabled()
             if RuntimeState.shared.secureInput != secure {
-                RuntimeState.shared.secureInput = secure
                 EngineBridge.clearAll()
+                RuntimeState.shared.secureInput = secure
                 NotificationCenter.default.post(name: .goVietStateChanged, object: nil)
             }
         }

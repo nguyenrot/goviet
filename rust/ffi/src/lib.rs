@@ -22,9 +22,9 @@ pub struct VkResult {
     /// Re-post the original key event after injecting (macro expansion).
     pub forward: u8,
     /// Number of characters to delete before inserting.
-    pub backspaces: u16,
+    pub backspaces: usize,
     /// UTF-16 code units used in `text`.
-    pub text_len: u16,
+    pub text_len: usize,
     pub text: [u16; TEXT_CAP],
 }
 
@@ -108,14 +108,14 @@ pub extern "C" fn vk_process_key(keycode: u16, ch: u32, flags: u8) -> VkResult {
             let units: Vec<u16> = text.encode_utf16().collect();
             let mut r = VkResult::pass();
             r.forward = u8::from(forward);
-            r.backspaces = backspaces.min(u16::MAX as usize) as u16;
+            r.backspaces = backspaces;
             if units.len() <= TEXT_CAP {
                 r.action = VK_ACTION_REPLACE;
-                r.text_len = units.len() as u16;
+                r.text_len = units.len();
                 r.text[..units.len()].copy_from_slice(&units);
             } else {
                 r.action = VK_ACTION_REPLACE_LARGE;
-                r.text_len = units.len().min(u16::MAX as usize) as u16;
+                r.text_len = units.len();
                 st.pending = units;
             }
             r
@@ -152,11 +152,28 @@ pub extern "C" fn vk_clear_all() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::CString;
+
+    static TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    fn test_guard() -> std::sync::MutexGuard<'static, ()> {
+        TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    fn reset_state() {
+        *lock() = State { engine: Engine::new(), pending: Vec::new() };
+    }
+
+    fn set_macros(json: &str) {
+        let json = CString::new(json).expect("macro JSON cannot contain NUL");
+        unsafe { vk_set_macros_json(json.as_ptr()) };
+    }
 
     #[test]
     fn smoke_type_viet_through_c_abi() {
+        let _test = test_guard();
         vk_init();
-        vk_clear_all();
+        reset_state();
         let mut buf: Vec<u16> = Vec::new();
         for c in "vieejt".chars() {
             let r = vk_process_key(0, c as u32, 0);
@@ -169,21 +186,46 @@ mod tests {
                     for _ in 0..r.backspaces {
                         buf.pop();
                     }
-                    buf.extend_from_slice(&r.text[..r.text_len as usize]);
+                    buf.extend_from_slice(&r.text[..r.text_len]);
                 }
                 _ => panic!("unexpected action"),
             }
         }
         assert_eq!(String::from_utf16(&buf).unwrap(), "việt");
-        vk_clear_all();
+        reset_state();
     }
 
     #[test]
     fn command_modifier_passes_through() {
+        let _test = test_guard();
         vk_init();
-        vk_clear_all();
+        reset_state();
         let r = vk_process_key(0, 'a' as u32, 1);
         assert_eq!(r.action, VK_ACTION_PASS);
-        vk_clear_all();
+        reset_state();
+    }
+
+    #[test]
+    fn large_macro_length_is_not_truncated_to_u16() {
+        let _test = test_guard();
+        vk_init();
+        reset_state();
+
+        let expansion = "x".repeat(u16::MAX as usize + 17);
+        set_macros(&format!(r#"{{"m":"{expansion}"}}"#));
+        assert_eq!(vk_process_key(0, 'm' as u32, 0).action, VK_ACTION_PASS);
+
+        let result = vk_process_key(0, ' ' as u32, 0);
+        assert_eq!(result.action, VK_ACTION_REPLACE_LARGE);
+        assert_eq!(result.text_len, expansion.len());
+        assert_eq!(result.backspaces, 1);
+        assert_eq!(result.forward, 1);
+
+        let mut copied = vec![0u16; result.text_len];
+        let copied_len = unsafe { vk_copy_pending_text(copied.as_mut_ptr(), copied.len()) };
+        assert_eq!(copied_len, expansion.len());
+        assert_eq!(String::from_utf16(&copied).unwrap(), expansion);
+
+        reset_state();
     }
 }

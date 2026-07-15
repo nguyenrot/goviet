@@ -24,13 +24,14 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     func updateIcon() {
         let state = RuntimeState.shared
+        let errorSuffix = SettingsStore.shared.lastErrorMessage == nil ? "" : "!"
         let title: String
         if state.secureInput {
-            title = "🔒"
+            title = "🔒\(errorSuffix)"
         } else if state.strategy == .passthrough || !state.vietnameseOn {
-            title = "EN"
+            title = "EN\(errorSuffix)"
         } else {
-            title = "VI"
+            title = "VI\(errorSuffix)"
         }
         statusItem.button?.title = title
     }
@@ -39,6 +40,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         let store = SettingsStore.shared
         menu.removeAllItems()
+
+        if let error = store.lastErrorMessage {
+            let shortError = error.count > 100 ? "\(error.prefix(97))…" : error
+            let item = NSMenuItem(
+                title: "Lỗi: \(shortError)",
+                action: #selector(openSettings),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.toolTip = error
+            menu.addItem(item)
+            menu.addItem(.separator())
+        }
 
         let chord = HotkeyDetector.Chord(rawValue: store.settings.hotkey) ?? .ctrlShift
         let toggle = NSMenuItem(

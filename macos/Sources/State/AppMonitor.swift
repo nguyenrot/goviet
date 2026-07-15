@@ -27,17 +27,25 @@ final class AppMonitor {
     private func frontAppChanged(bundleID: String) {
         let store = SettingsStore.shared
         let state = RuntimeState.shared
-        state.frontBundleID = bundleID
-        EngineBridge.clearAll()
 
+        let strategy: InjectionStrategy
         if store.settings.excludedApps.contains(bundleID) {
-            state.strategy = .passthrough
+            strategy = .passthrough
         } else {
             let overrides = store.settings.strategyOverrides.compactMapValues(InjectionStrategy.init(rawValue:))
-            state.strategy = AppProfiles.strategy(for: bundleID, overrides: overrides)
+            strategy = AppProfiles.strategy(for: bundleID, overrides: overrides)
         }
 
-        if store.settings.smartSwitch, let remembered = store.settings.rememberedMode[bundleID] {
+        let remembered = store.settings.smartSwitch
+            ? store.settings.rememberedMode[bundleID]
+            : nil
+        EngineBridge.clearAll()
+        state.applyAppContext(
+            bundleID: bundleID,
+            strategy: strategy,
+            vietnameseOn: remembered
+        )
+        if let remembered {
             store.setVietnameseOnQuietly(remembered)
         }
         NotificationCenter.default.post(name: .goVietStateChanged, object: nil)

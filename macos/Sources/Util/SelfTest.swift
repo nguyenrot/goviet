@@ -1,3 +1,4 @@
+#if DEBUG
 import CoreGraphics
 import Foundation
 import os.log
@@ -10,8 +11,8 @@ private let log = Logger(subsystem: "com.kynguyen.goviet", category: "selftest")
 ///   defaults write com.kynguyen.goviet SelfTestEnabled -bool true
 /// then:
 ///   (JXA) postNotification "com.kynguyen.goviet.typetest" with the string.
-/// Keep disabled outside development: any local process could make the app
-/// type text through this hook.
+/// Compiled out of Release builds: any local process could otherwise make the
+/// Accessibility-trusted app type text through this hook.
 enum SelfTest {
     static func register() {
         guard UserDefaults.standard.bool(forKey: "SelfTestEnabled") else {
@@ -55,3 +56,4 @@ enum SelfTest {
         log.info("selftest done typing")
     }
 }
+#endif

@@ -1,10 +1,6 @@
 import AppKit
 import os.log
 
-/// Marker stamped on every event GõViệt synthesizes so the tap callback can
-/// ignore its own events ("GVIT").
-let kGoVietEventMarker: Int64 = 0x4756_4954
-
 private let log = Logger(subsystem: "com.kynguyen.goviet", category: "tap")
 
 /// Owns the CGEventTap: creation, callback, self-healing.
@@ -37,10 +33,18 @@ final class EventTapManager {
     private func threadMain() {
         let mask: CGEventMask =
             (1 << CGEventType.keyDown.rawValue)
+            | (1 << CGEventType.keyUp.rawValue)
             | (1 << CGEventType.flagsChanged.rawValue)
             | (1 << CGEventType.leftMouseDown.rawValue)
+            | (1 << CGEventType.leftMouseUp.rawValue)
             | (1 << CGEventType.rightMouseDown.rawValue)
+            | (1 << CGEventType.rightMouseUp.rawValue)
             | (1 << CGEventType.otherMouseDown.rawValue)
+            | (1 << CGEventType.otherMouseUp.rawValue)
+            | (1 << CGEventType.leftMouseDragged.rawValue)
+            | (1 << CGEventType.rightMouseDragged.rawValue)
+            | (1 << CGEventType.otherMouseDragged.rawValue)
+            | (1 << CGEventType.scrollWheel.rawValue)
 
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
@@ -91,7 +95,12 @@ final class EventTapManager {
         switch type {
         case .leftMouseDown, .rightMouseDown, .otherMouseDown:
             EngineBridge.resetWord()
-            return Unmanaged.passUnretained(event)
+            return passOrDefer(event)
+
+        case .leftMouseUp, .rightMouseUp, .otherMouseUp,
+             .leftMouseDragged, .rightMouseDragged, .otherMouseDragged,
+             .scrollWheel, .keyUp:
+            return passOrDefer(event)
 
         case .flagsChanged:
             let verdict = HotkeyDetector.shared.handleFlagsChanged(
@@ -101,28 +110,28 @@ final class EventTapManager {
             if verdict.fire {
                 onToggleHotkey?()
             }
-            return verdict.consume ? nil : Unmanaged.passUnretained(event)
+            return verdict.consume ? nil : passOrDefer(event)
 
         case .keyDown:
             return handleKeyDown(proxy: proxy, event: event)
 
         default:
-            return Unmanaged.passUnretained(event)
+            return passOrDefer(event)
         }
     }
 
     private func handleKeyDown(proxy: CGEventTapProxy, event: CGEvent) -> Unmanaged<CGEvent>? {
         HotkeyDetector.shared.keyPressed()
 
-        let state = RuntimeState.shared
+        let state = RuntimeState.shared.processingSnapshot
         guard state.shouldProcess else {
-            return Unmanaged.passUnretained(event)
+            return passOrDefer(event)
         }
 
         // Held-key auto-repeat: never fight it, just drop word state.
         if event.getIntegerValueField(.keyboardEventAutorepeat) != 0 {
             EngineBridge.resetWord()
-            return Unmanaged.passUnretained(event)
+            return passOrDefer(event)
         }
 
         let flags = event.flags
@@ -130,15 +139,12 @@ final class EventTapManager {
             || flags.contains(.maskAlternate) || flags.contains(.maskSecondaryFn)
 
         let keycode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
-        var length = 0
-        var chars = [UniChar](repeating: 0, count: 4)
-        event.keyboardGetUnicodeString(maxStringLength: 4, actualStringLength: &length, unicodeString: &chars)
-        let ch: UInt32 = length > 0 ? UInt32(chars[0]) : 0
+        let ch = engineScalar(from: event)
 
         let result = EngineBridge.processKey(keycode: keycode, char: ch, commandLike: commandLike)
         switch result.kind {
         case .passThrough:
-            return Unmanaged.passUnretained(event)
+            return passOrDefer(event)
         case let .replace(backspaces, text, forward):
             TextInjector.inject(
                 backspaces: backspaces,
@@ -150,5 +156,30 @@ final class EventTapManager {
             )
             return nil // consume the real keystroke — the injection includes it
         }
+    }
+
+    /// The Rust ABI accepts one Unicode scalar. A non-BMP scalar occupies two
+    /// UTF-16 units, so decode the complete event string instead of forwarding
+    /// `chars[0]` (a lone surrogate). Multi-scalar events are treated as a
+    /// non-text break: the original event is still forwarded intact, while the
+    /// engine safely commits and clears its current word.
+    private func engineScalar(from event: CGEvent) -> UInt32 {
+        var length = 0
+        var units = [UniChar](repeating: 0, count: 16)
+        event.keyboardGetUnicodeString(
+            maxStringLength: units.count,
+            actualStringLength: &length,
+            unicodeString: &units
+        )
+        return EventTextDecoder.scalarForEngine(units: units, length: length)
+    }
+
+    /// Preserve physical input ordering while slow replacement events are
+    /// paced on TextInjector's serial worker.
+    private func passOrDefer(_ event: CGEvent) -> Unmanaged<CGEvent>? {
+        if TextInjector.deferEventIfNeeded(event) {
+            return nil
+        }
+        return Unmanaged.passUnretained(event)
     }
 }

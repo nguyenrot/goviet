@@ -31,12 +31,13 @@ Cài đặt), không cần chuyển input source.
 **Bản dựng sẵn:** tải file DMG ở [Releases](https://github.com/nguyenrot/goviet/releases),
 kéo app vào Applications (xem mục cài đặt bên dưới vì bản này chưa notarize).
 
-Build từ source — yêu cầu: Xcode, Rust (cargo), `brew install xcodegen cbindgen`.
+Build từ source — yêu cầu: Xcode, Rust cài qua
+[rustup](https://rustup.rs), `brew install xcodegen cbindgen`.
 
 ```bash
 make install   # build core Rust + app, ký, cài vào /Applications, mở app
-make test      # cargo test + clippy
-make dmg       # đóng gói build/GoViet-<version>.dmg để cài máy khác
+make test      # cargo fmt + test + clippy
+make dmg       # DMG universal arm64 + x86_64 để cài máy khác
 make watch     # xem log runtime
 ```
 

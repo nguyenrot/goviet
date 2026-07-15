@@ -3,3 +3,9 @@ a. ddi	a. Đi
 xin chaof! toi	xin chào! Toi
 a? b	a? B
 a, b	a, b
+# English auto-restore must not mistake capitalization for a Telex transform.
+a. hello	a. Hello
+a. text	a. Text
+# Escape still restores the literal keystrokes after automatic capitalization.
+a. hello⎋	a. hello
+a. text⎋	a. text

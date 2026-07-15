@@ -1,15 +1,21 @@
 import Foundation
 
 /// Injection strategy per app — where the per-app landmines are defused.
-enum InjectionStrategy: String, Codable {
+enum InjectionStrategy: String, Codable, Sendable {
     /// Backspace burst + chunked unicode text (default).
     case fast
-    /// One char per event with delays (terminals).
+    /// Paced events for terminals; very large payloads use bounded chunks.
     case slow
     /// Shift+Left selection then retype (Chromium omnibox autocomplete fix).
     case selectAndRetype
     /// Do not touch this app at all.
     case passthrough
+}
+
+struct RuntimeProcessingSnapshot: Sendable {
+    let shouldProcess: Bool
+    let strategy: InjectionStrategy
+    let slowDelayUS: UInt32
 }
 
 /// Snapshot of everything the tap callback needs, guarded by one lock.
@@ -36,8 +42,7 @@ final class RuntimeState: @unchecked Sendable {
     }
 
     var strategy: InjectionStrategy {
-        get { lock.withLock { _strategy } }
-        set { lock.withLock { _strategy = newValue } }
+        lock.withLock { _strategy }
     }
 
     var slowDelayUS: UInt32 {
@@ -46,12 +51,34 @@ final class RuntimeState: @unchecked Sendable {
     }
 
     var frontBundleID: String {
-        get { lock.withLock { _frontBundleID } }
-        set { lock.withLock { _frontBundleID = newValue } }
+        lock.withLock { _frontBundleID }
     }
 
-    /// Single check the tap callback makes before doing any work.
-    var shouldProcess: Bool {
-        lock.withLock { _vietnameseOn && !_secureInput && _strategy != .passthrough }
+    /// Commit an app switch as one state transition. A tap callback therefore
+    /// sees either the complete old context or the complete new one.
+    func applyAppContext(
+        bundleID: String,
+        strategy: InjectionStrategy,
+        vietnameseOn: Bool?
+    ) {
+        lock.withLock {
+            _frontBundleID = bundleID
+            _strategy = strategy
+            if let vietnameseOn {
+                _vietnameseOn = vietnameseOn
+            }
+        }
+    }
+
+    /// Read all processing decisions atomically so an app switch cannot mix
+    /// `shouldProcess` from one app with the strategy of another.
+    var processingSnapshot: RuntimeProcessingSnapshot {
+        lock.withLock {
+            RuntimeProcessingSnapshot(
+                shouldProcess: _vietnameseOn && !_secureInput && _strategy != .passthrough,
+                strategy: _strategy,
+                slowDelayUS: _slowDelayUS
+            )
+        }
     }
 }

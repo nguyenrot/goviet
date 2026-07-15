@@ -38,6 +38,9 @@ pub struct Engine {
     suppress_restore: bool,
     /// `raw` faithfully mirrors keystrokes (false after backspace surgery).
     esc_ok: bool,
+    /// The first letter was uppercased by sentence capitalization rather than
+    /// typed uppercase. English restore must preserve this presentation.
+    auto_capitalized: bool,
     sentence: SentenceState,
 }
 
@@ -57,6 +60,7 @@ impl Engine {
             restored: false,
             suppress_restore: false,
             esc_ok: true,
+            auto_capitalized: false,
             sentence: SentenceState::default(),
         }
     }
@@ -82,6 +86,7 @@ impl Engine {
         self.restored = false;
         self.suppress_restore = false;
         self.esc_ok = true;
+        self.auto_capitalized = false;
     }
 
     /// Caret moved (click, arrows, app switch): forget the word silently.
@@ -100,6 +105,33 @@ impl Engine {
 
     fn raw_string(&self) -> String {
         self.raw.iter().collect()
+    }
+
+    /// Literal keystrokes as they should remain on screen. Unlike `raw_string`,
+    /// this preserves sentence auto-capitalization while ignoring Telex/VNI
+    /// transformations.
+    fn literal_string(&self) -> String {
+        self.raw
+            .iter()
+            .enumerate()
+            .map(|(i, &c)| {
+                if i == 0 && self.auto_capitalized {
+                    c.to_uppercase().next().unwrap_or(c)
+                } else {
+                    c
+                }
+            })
+            .collect()
+    }
+
+    fn restore_literal_preserving_capitalization(&mut self) {
+        self.comp.set_literal(&self.raw);
+        if !self.auto_capitalized {
+            return;
+        }
+        if let Some(first) = self.comp.letters.first_mut() {
+            first.upper = true;
+        }
     }
 
     pub fn process_key(&mut self, k: KeyInput) -> Action {
@@ -148,6 +180,9 @@ impl Engine {
             // still consume pending state so a later toggle can't misfire
             self.sentence.on_word_start(c);
         }
+        if force_upper {
+            self.auto_capitalized = true;
+        }
         self.raw.push(c);
 
         if self.restored || self.comp.letters.len() >= MAX_WORD_LEN {
@@ -179,7 +214,7 @@ impl Engine {
             && self.is_word_transformed()
             && !valid_prefix(&self.comp.letters, self.comp.tone)
         {
-            self.comp.set_literal(&self.raw);
+            self.restore_literal_preserving_capitalization();
             self.restored = true;
         }
         if !c.is_ascii_alphanumeric() {
@@ -190,7 +225,7 @@ impl Engine {
     }
 
     fn is_word_transformed(&self) -> bool {
-        self.composed() != self.raw_string()
+        self.composed() != self.literal_string()
     }
 
     fn diff(&self, prev: &str, typed: char) -> Action {
@@ -224,20 +259,23 @@ impl Engine {
             self.raw = chars;
             self.esc_ok = false;
             self.suppress_restore = true;
+            self.auto_capitalized = false;
         }
         Action::PassThrough
     }
 
     fn handle_escape(&mut self) -> Action {
         let composed = self.composed();
+        let auto_capitalization_only = self.auto_capitalized && composed == self.literal_string();
         if self.cfg.esc_restores_raw
-            && !self.restored
+            && (!self.restored || auto_capitalization_only)
             && self.esc_ok
             && !self.comp.is_empty()
             && composed != self.raw_string()
         {
             let text = self.raw_string();
             self.comp.set_literal(&self.raw);
+            self.auto_capitalized = false;
             self.restored = true;
             return Action::Replace {
                 backspaces: composed.chars().count(),
@@ -270,12 +308,13 @@ impl Engine {
             && !self.comp.is_empty()
         {
             let word = self.composed();
-            if word != self.raw_string()
+            let literal = self.literal_string();
+            if word != literal
                 && !crate::validation::valid_full(&self.comp.letters, self.comp.tone)
             {
                 action = Action::Replace {
                     backspaces: word.chars().count(),
-                    text: self.raw_string(),
+                    text: literal,
                     forward: true,
                 };
             }

@@ -21,9 +21,9 @@ targets:
         INFOPLIST_FILE: Resources/Info.plist
         SWIFT_OBJC_BRIDGING_HEADER: $(PROJECT_DIR)/Sources/Bridge/GoViet-Bridging-Header.h
         HEADER_SEARCH_PATHS: $(PROJECT_DIR)/Generated
-        LIBRARY_SEARCH_PATHS: $(PROJECT_DIR)/../rust/target/release
+        LIBRARY_SEARCH_PATHS: $(PROJECT_DIR)/../build/universal
         OTHER_LDFLAGS: "-lgoviet_ffi"
-        ENABLE_HARDENED_RUNTIME: NO
+        ENABLE_HARDENED_RUNTIME: YES
         ENABLE_APP_SANDBOX: NO
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: ""

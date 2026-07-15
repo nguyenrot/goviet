@@ -20,6 +20,17 @@ struct SettingsView: View {
         }
         .frame(width: 560, height: 420)
         .padding()
+        .alert(
+            "Lỗi GõViệt",
+            isPresented: Binding(
+                get: { store.lastErrorMessage != nil },
+                set: { if !$0 { store.clearError() } }
+            )
+        ) {
+            Button("OK", role: .cancel) { store.clearError() }
+        } message: {
+            Text(store.lastErrorMessage ?? "")
+        }
     }
 }
 
@@ -110,7 +121,11 @@ struct MacrosTab: View {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.json]
         if panel.runModal() == .OK, let url = panel.url {
-            try? store.importMacros(from: url)
+            do {
+                try store.importMacros(from: url)
+            } catch {
+                store.reportError("Không thể nhập danh sách gõ tắt", error: error)
+            }
         }
     }
 
@@ -119,7 +134,11 @@ struct MacrosTab: View {
         panel.allowedContentTypes = [.json]
         panel.nameFieldStringValue = "goviet-macros.json"
         if panel.runModal() == .OK, let url = panel.url {
-            try? store.exportMacros(to: url)
+            do {
+                try store.exportMacros(to: url)
+            } catch {
+                store.reportError("Không thể xuất danh sách gõ tắt", error: error)
+            }
         }
     }
 }
@@ -177,11 +196,15 @@ struct AppsTab: View {
 }
 
 struct AboutTab: View {
+    private var version: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
+    }
+
     var body: some View {
         VStack(spacing: 10) {
             Text("GõViệt").font(.largeTitle.bold())
             Text("Bộ gõ tiếng Việt cho macOS — kiểu Unikey")
-            Text("Phiên bản 0.1.0").foregroundStyle(.secondary)
+            Text("Phiên bản \(version)").foregroundStyle(.secondary)
             Text("Engine Rust + shell Swift · MIT License")
                 .font(.caption)
                 .foregroundStyle(.secondary)

@@ -14,12 +14,28 @@ jobs:
       run:
         working-directory: rust
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy
+          components: clippy,rustfmt
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
+      - run: cargo fmt --check
       - run: cargo test
       - run: cargo clippy --all-targets -- -D warnings
+
+  macos:
+    name: Universal macOS app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - run: brew install xcodegen cbindgen
+      - run: make app
+      - run: lipo -verify_arch arm64 x86_64 build/Release/GoViet.app/Contents/MacOS/GoViet

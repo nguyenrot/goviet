@@ -25,7 +25,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menuBar.start()
         SecureInputMonitor.shared.start()
         AppMonitor.shared.start()
+        #if DEBUG
         SelfTest.register()
+        #endif
 
         tapManager.onToggleHotkey = {
             DispatchQueue.main.async {

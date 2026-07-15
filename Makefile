@@ -7,6 +7,11 @@ APP      := build/Release/GoViet.app
 DEST     := /Applications/GoViet.app
 VERSION  := $(shell /usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' macos/Resources/Info.plist)
 DMG      := build/GoViet-$(VERSION).dmg
+RUST_ARM64_TARGET := aarch64-apple-darwin
+RUST_X86_64_TARGET := x86_64-apple-darwin
+RUST_ARM64_LIB := rust/target/$(RUST_ARM64_TARGET)/release/libgoviet_ffi.a
+RUST_X86_64_LIB := rust/target/$(RUST_X86_64_TARGET)/release/libgoviet_ffi.a
+UNIVERSAL_LIB := build/universal/libgoviet_ffi.a
 
 .PHONY: core app test sign install dmg watch clean icon
 
@@ -17,7 +22,12 @@ icon:
 	iconutil -c icns build/AppIcon.iconset -o macos/Resources/AppIcon.icns
 
 core:
-	cd rust && cargo build --release
+	rustup target add $(RUST_ARM64_TARGET) $(RUST_X86_64_TARGET)
+	cd rust && cargo build --release --target $(RUST_ARM64_TARGET)
+	cd rust && cargo build --release --target $(RUST_X86_64_TARGET)
+	mkdir -p build/universal macos/Generated
+	lipo -create $(RUST_ARM64_LIB) $(RUST_X86_64_LIB) -output $(UNIVERSAL_LIB)
+	lipo -verify_arch arm64 x86_64 $(UNIVERSAL_LIB)
 	cbindgen --config rust/ffi/cbindgen.toml --crate goviet-ffi --output macos/Generated/goviet.h rust/ffi
 
 app: core
@@ -25,15 +35,19 @@ app: core
 	cd macos && xcodebuild -project GoViet.xcodeproj -scheme GoViet \
 		-configuration Release -derivedDataPath ../build/DerivedData \
 		CONFIGURATION_BUILD_DIR=$(CURDIR)/build/Release \
+		ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
 		CODE_SIGNING_ALLOWED=NO build
 
 test:
+	cd rust && cargo fmt --check
 	cd rust && cargo test
 	cd rust && cargo clippy --all-targets -- -D warnings
 
 sign: app
-	codesign --force --deep --sign "$(IDENTITY)" $(APP)
-	codesign -dv $(APP) 2>&1 | grep -E "Authority|TeamIdentifier" || true
+	codesign --force --deep --options runtime --sign "$(IDENTITY)" $(APP)
+	codesign --verify --deep --strict --verbose=2 $(APP)
+	codesign -dvvv $(APP) 2>&1 | grep -q "flags=.*runtime"
+	codesign -dvv $(APP) 2>&1 | grep -E "Authority|TeamIdentifier"
 
 install: sign
 	@pgrep -x GoViet >/dev/null && killall GoViet || true
