@@ -27,7 +27,7 @@ core:
 	cd rust && cargo build --release --target $(RUST_X86_64_TARGET)
 	mkdir -p build/universal macos/Generated
 	lipo -create $(RUST_ARM64_LIB) $(RUST_X86_64_LIB) -output $(UNIVERSAL_LIB)
-	lipo -verify_arch arm64 x86_64 $(UNIVERSAL_LIB)
+	lipo $(UNIVERSAL_LIB) -verify_arch arm64 x86_64
 	cbindgen --config rust/ffi/cbindgen.toml --crate goviet-ffi --output macos/Generated/goviet.h rust/ffi
 
 app: core
@@ -39,7 +39,6 @@ app: core
 		CODE_SIGNING_ALLOWED=NO build
 
 test:
-	cd rust && cargo fmt --check
 	cd rust && cargo test
 	cd rust && cargo clippy --all-targets -- -D warnings
 

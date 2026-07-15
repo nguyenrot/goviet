@@ -36,7 +36,7 @@ Build từ source — yêu cầu: Xcode, Rust cài qua
 
 ```bash
 make install   # build core Rust + app, ký, cài vào /Applications, mở app
-make test      # cargo fmt + test + clippy
+make test      # cargo test + clippy
 make dmg       # DMG universal arm64 + x86_64 để cài máy khác
 make watch     # xem log runtime
 ```

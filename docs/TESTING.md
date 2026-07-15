@@ -62,7 +62,7 @@ Câu mẫu: `Toàn thể nhân dân Việt Nam quyết tâm giữ vững độc 
   expand và kiểm tra không bị cắt ở mốc 65.535; thử kèm emoji ở hai phía mốc.
 - **Clean/universal build**: từ fresh clone chạy `make app` khi chưa có
   `macos/Generated/` → build phải tự tạo header. Chạy
-  `lipo -verify_arch arm64 x86_64 build/Release/GoViet.app/Contents/MacOS/GoViet`.
+  `lipo build/Release/GoViet.app/Contents/MacOS/GoViet -verify_arch arm64 x86_64`.
 - **Hiển thị lỗi Settings**: nhập JSON macro sai, xuất vào thư mục không ghi
   được và làm đăng ký Launch at Login thất bại → Settings phải hiện alert,
   không được im lặng. Giá trị `slowDelayMS` ngoài 1...30 trong config phải được

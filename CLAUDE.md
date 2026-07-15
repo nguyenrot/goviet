@@ -11,7 +11,7 @@ GõViệt — a Vietnamese input method (IME) for macOS in the style of Unikey o
 Prereqs: Xcode, Rust via rustup, `brew install xcodegen cbindgen`.
 
 ```bash
-make test      # cargo fmt --check + test + clippy --all-targets -- -D warnings
+make test      # cargo test + clippy --all-targets -- -D warnings
 make core      # universal arm64+x86_64 Rust lib + regenerate goviet.h
 make install   # full pipeline: core → xcodegen → xcodebuild → codesign → /Applications → open
 make dmg       # package build/GoViet-<version>.dmg
