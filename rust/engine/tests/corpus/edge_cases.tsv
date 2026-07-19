@@ -19,3 +19,12 @@ ddawps	đắp
 huyjch	huỵch
 pisa	pía
 offf	off
+# Backspacing a mistyped suffix re-enables Vietnamese after English restore:
+# "muowa" auto-restores (mươa is invalid), but deleting back to a valid prefix
+# must let the next telex modifier compose again (was: stuck literal, whole
+# word had to be retyped).
+muowa⌫⌫wif	mười
+muowa⌫⌫⌫owif	mười
+# ...while a remainder that is still not Vietnamese stays inert ("use" is not a
+# valid prefix, so retyping "r" must not tone it to "usẻ").
+user⌫r	user

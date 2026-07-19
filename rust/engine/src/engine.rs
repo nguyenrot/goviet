@@ -260,6 +260,14 @@ impl Engine {
             self.esc_ok = false;
             self.suppress_restore = true;
             self.auto_capitalized = false;
+            // A restored (inert) word becomes Vietnamese-typable again once the
+            // offending suffix is deleted: if what remains is a valid syllable
+            // prefix, re-enable composition so the next modifier key transforms
+            // ("muowa"⌫⌫ → "muo", then "w" → "mươ"). A remainder that is still
+            // not Vietnamese ("user"⌫ → "use") stays inert.
+            if self.restored && valid_prefix(&self.comp.letters, self.comp.tone) {
+                self.restored = false;
+            }
         }
         Action::PassThrough
     }
