@@ -1,6 +1,20 @@
-# Ma trận test tay
+# Kiểm thử
 
-Chạy sau mỗi thay đổi đáng kể ở shell Swift (engine đã có test tự động).
+## Tự động
+
+Chạy `make test` sau mọi thay đổi. Lệnh này chạy corpus/unit/stress
+test của Rust, Clippy với warning là lỗi, và XCTest cho phần Swift có
+thể tách khỏi UI. CI cũng chạy Swift test trước khi build app universal.
+
+Harness AppKit trong `macos/IntegrationTests/` tạo `NSTextView` thật để kiểm
+tra trọn pipeline event tap → Rust FFI → injector. Build Debug, bật
+`SelfTestEnabled`, rồi gửi notification `com.kynguyen.goviet.typetest`;
+`userInfo["delay_us"]` có thể đặt về 0 để mô phỏng burst. Hook này bị
+biên dịch loại khỏi bản Release.
+
+## Ma trận test tay
+
+Chạy sau mỗi thay đổi đáng kể ở event tap/injector.
 Với mỗi app: (1) gõ nhanh một đoạn tiếng Việt dài, (2) click vào giữa từ rồi
 gõ tiếp, (3) backspace vào giữa từ đã bỏ dấu, (4) gõ macro + space,
 (5) toggle ⌃⇧ giữa chừng từ, (6) gõ từ tiếng Anh ("text", "world").
@@ -52,9 +66,15 @@ Câu mẫu: `Toàn thể nhân dân Việt Nam quyết tâm giữ vững độc 
   200 ký tự, expand rồi lập tức gõ `abc` và click vị trí khác → expansion phải
   đứng trước `abc`/click, không mất phím và log không có
   `tap disabled ... timeout`.
+- **Đổi app khi hàng đợi còn bận**: trong app `.slow`, gõ burst hoặc
+  expand macro dài, rồi chuyển ngay sang app khác → phần thay thế và phím
+  đã hoãn phải chỉ đi vào process ban đầu; app mới không được nhận
+  backspace/text cũ. Lặp lại nhiều lần với Spotlight/terminal.
 - **Self-test chỉ có ở Debug**: bật `SelfTestEnabled`, gửi distributed
   notification vào bản Release từ `make app` → app không được gõ gì. Lặp lại
   với Debug build để xác nhận hook phát triển vẫn hoạt động.
+  Chuỗi Debug có thể dùng `⌫`, `⎋`, `⏎`, `←`, `→`, `↑`, `↓` để
+  kiểm tra các phím điều khiển mà không log nội dung người dùng.
 - **Autocaps + khôi phục tiếng Anh**: bật cả hai tùy chọn, gõ
   `a. hello ` và `a. text ` → phải ra `a. Hello ` và `a. Text `; ESC vẫn trả
   đúng phím gốc khi người dùng chủ động yêu cầu.

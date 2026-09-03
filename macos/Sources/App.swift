@@ -29,9 +29,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SelfTest.register()
         #endif
 
-        tapManager.onToggleHotkey = {
+        tapManager.onToggleHotkey = { change in
             DispatchQueue.main.async {
-                SettingsStore.shared.vietnameseOn.toggle()
+                SettingsStore.shared.commitHotkeyToggle(change)
             }
         }
 

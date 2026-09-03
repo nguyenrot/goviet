@@ -239,6 +239,21 @@ final class SettingsStore: ObservableObject {
         quiet = false
     }
 
+    /// Finish the persistence/UI half of a hotkey transition that was already
+    /// applied synchronously by the tap thread. Persist against the app that
+    /// received the chord, even if focus changes before this main-queue work.
+    func commitHotkeyToggle(_ change: RuntimeModeChange) {
+        if settings.smartSwitch, !change.bundleID.isEmpty,
+           settings.rememberedMode[change.bundleID] != change.vietnameseOn
+        {
+            settings.rememberedMode[change.bundleID] = change.vietnameseOn
+        }
+        // `persistAndApply` may have refreshed a different frontmost app. The
+        // published value must mirror that resulting runtime mode, not blindly
+        // replay the old app's value.
+        setVietnameseOnQuietly(RuntimeState.shared.vietnameseOn)
+    }
+
     private var fileURL: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("GoViet", isDirectory: true)

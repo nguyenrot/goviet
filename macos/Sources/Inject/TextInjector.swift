@@ -1,5 +1,9 @@
 import CoreGraphics
+import Darwin
 import Foundation
+import os.log
+
+private let injectionLog = Logger(subsystem: "com.kynguyen.goviet", category: "inject")
 
 /// Marker stamped on every event GõViệt synthesizes so the tap callback can
 /// ignore its own events ("GVIT").
@@ -18,6 +22,7 @@ private final class InjectionRequest: @unchecked Sendable {
     let text: [UInt16]
     let strategy: InjectionStrategy
     let slowDelayUS: UInt32
+    let targetProcessID: pid_t?
     let originalEvent: SendableEvent?
 
     init(
@@ -25,55 +30,20 @@ private final class InjectionRequest: @unchecked Sendable {
         text: [UInt16],
         strategy: InjectionStrategy,
         slowDelayUS: UInt32,
+        targetProcessID: pid_t?,
         originalEvent: CGEvent?
     ) {
         self.backspaces = backspaces
         self.text = text
         self.strategy = strategy
         self.slowDelayUS = slowDelayUS
+        self.targetProcessID = targetProcessID
         if let originalEvent, let copy = originalEvent.copy() {
             copy.setIntegerValueField(.eventSourceUserData, value: kGoVietEventMarker)
             self.originalEvent = SendableEvent(copy)
         } else {
             self.originalEvent = nil
         }
-    }
-}
-
-/// Serializes slow injection outside the event-tap callback. `pending` is
-/// incremented before the callback returns, so later physical events can be
-/// consumed and replayed behind the replacement that logically precedes them.
-private final class InjectionScheduler: @unchecked Sendable {
-    static let shared = InjectionScheduler()
-
-    private let queue = DispatchQueue(label: "com.kynguyen.goviet.inject", qos: .userInteractive)
-    private let lock = NSLock()
-    private var pending = 0
-
-    var hasPending: Bool {
-        lock.withLock { pending > 0 }
-    }
-
-    /// Schedule when forced (the slow strategy) or when another injection is
-    /// already queued. Returns false when the caller should execute inline.
-    func schedule(
-        force: Bool,
-        operation: @escaping @Sendable () -> Void
-    ) -> Bool {
-        let accepted = lock.withLock {
-            guard force || pending > 0 else { return false }
-            pending += 1
-            return true
-        }
-        guard accepted else { return false }
-
-        queue.async {
-            operation()
-            self.lock.withLock {
-                self.pending -= 1
-            }
-        }
-        return true
     }
 }
 
@@ -100,6 +70,7 @@ enum TextInjector {
         text: [UInt16],
         strategy: InjectionStrategy,
         slowDelayUS: UInt32,
+        targetProcessID: pid_t?,
         proxy: CGEventTapProxy?,
         originalEvent: CGEvent?
     ) {
@@ -109,12 +80,16 @@ enum TextInjector {
             text: text,
             strategy: strategy,
             slowDelayUS: slowDelayUS,
+            targetProcessID: targetProcessID,
             originalEvent: originalEvent
         )
 
         if scheduler.schedule(force: strategy == .slow, operation: {
             perform(request, proxy: nil, postGlobally: true)
         }) {
+            injectionLog.debug(
+                "queued strategy=\(strategy.rawValue, privacy: .public) backspaces=\(backspaces, privacy: .public) utf16=\(text.count, privacy: .public) pid=\(targetProcessID ?? 0, privacy: .public) depth=\(scheduler.pendingCount, privacy: .public)"
+            )
             return
         }
         perform(request, proxy: proxy, postGlobally: false)
@@ -128,8 +103,13 @@ enum TextInjector {
         guard let copy = event.copy() else { return false }
         copy.setIntegerValueField(.eventSourceUserData, value: kGoVietEventMarker)
         let boxed = SendableEvent(copy)
+        let targetProcessID = deferredTargetProcessID(for: event)
         return scheduler.schedule(force: false) {
-            boxed.event.post(tap: .cgSessionEventTap)
+            if let targetProcessID {
+                boxed.event.postToPid(targetProcessID)
+            } else {
+                boxed.event.post(tap: .cgSessionEventTap)
+            }
         }
     }
 
@@ -138,93 +118,98 @@ enum TextInjector {
         proxy: CGEventTapProxy?,
         postGlobally: Bool
     ) {
-        let source = CGEventSource(stateID: .privateState)
+        let context = PostingContext(
+            source: CGEventSource(stateID: .privateState),
+            proxy: proxy,
+            postGlobally: postGlobally,
+            targetProcessID: request.targetProcessID
+        )
         switch request.strategy {
         case .fast:
             deleteByBackspace(
                 request.backspaces,
-                source: source,
-                proxy: proxy,
-                postGlobally: postGlobally,
+                context: context,
                 delayUS: 0
             )
             postText(
-                request.text,
-                source: source,
-                proxy: proxy,
-                postGlobally: postGlobally,
-                perCharacter: false,
-                maxChunkSize: chunkSize,
+                TextInjectionPlanner.elements(
+                    for: request.text,
+                    perCharacter: false,
+                    maxChunkSize: chunkSize
+                ),
+                context: context,
                 delayUS: 0
             )
         case .slow:
             let decodedText = String(decoding: request.text, as: UTF16.self)
             let perCharacter = decodedText.count <= slowPerCharacterLimit
             let maxChunkSize = perCharacter ? chunkSize : slowBulkChunkSize
-            let textSteps = slowTextEventCount(
-                decodedText,
+            let textElements = TextInjectionPlanner.elements(
+                for: request.text,
                 perCharacter: perCharacter,
                 maxChunkSize: maxChunkSize
             )
-            let totalSteps = request.backspaces.addingReportingOverflow(textSteps)
-            let delayUS = boundedSlowDelay(
+            let totalSteps = request.backspaces.addingReportingOverflow(textElements.count)
+            let pacedSteps = totalSteps.partialValue.addingReportingOverflow(1)
+            let delayUS = TextInjectionPlanner.boundedDelay(
                 configuredUS: request.slowDelayUS,
-                steps: totalSteps.overflow ? Int.max : totalSteps.partialValue
+                stepCount: totalSteps.overflow || pacedSteps.overflow
+                    ? Int.max : pacedSteps.partialValue,
+                totalBudgetUS: maxSlowPacingUS
             )
+            // A physical key returned from the session tap is delivered to the
+            // application asynchronously. Give it the configured compatibility
+            // interval before a PID-targeted backspace can overtake it.
+            delay(delayUS)
             deleteByBackspace(
                 request.backspaces,
-                source: source,
-                proxy: proxy,
-                postGlobally: postGlobally,
+                context: context,
                 delayUS: delayUS
             )
             postText(
-                request.text,
-                source: source,
-                proxy: proxy,
-                postGlobally: postGlobally,
-                perCharacter: perCharacter,
-                maxChunkSize: maxChunkSize,
+                textElements,
+                context: context,
                 delayUS: delayUS
             )
         case .selectAndRetype:
             selectLeft(
                 request.backspaces,
-                source: source,
-                proxy: proxy,
-                postGlobally: postGlobally
+                context: context
             )
             postText(
-                request.text,
-                source: source,
-                proxy: proxy,
-                postGlobally: postGlobally,
-                perCharacter: false,
-                maxChunkSize: chunkSize,
+                TextInjectionPlanner.elements(
+                    for: request.text,
+                    perCharacter: false,
+                    maxChunkSize: chunkSize
+                ),
+                context: context,
                 delayUS: 0
             )
         case .passthrough:
             return
         }
         if let original = request.originalEvent?.event {
-            post(original, proxy: proxy, globally: postGlobally)
+            post(original, context: context)
         }
+    }
+
+    private struct PostingContext {
+        let source: CGEventSource?
+        let proxy: CGEventTapProxy?
+        let postGlobally: Bool
+        let targetProcessID: pid_t?
     }
 
     private static func deleteByBackspace(
         _ count: Int,
-        source: CGEventSource?,
-        proxy: CGEventTapProxy?,
-        postGlobally: Bool,
+        context: PostingContext,
         delayUS: UInt32
     ) {
         guard count > 0 else { return }
         for _ in 0..<count {
             postKey(
                 kVKDelete,
-                source: source,
-                proxy: proxy,
-                postGlobally: postGlobally
+                context: context
             )
             delay(delayUS)
         }
@@ -232,99 +217,48 @@ enum TextInjector {
 
     private static func selectLeft(
         _ count: Int,
-        source: CGEventSource?,
-        proxy: CGEventTapProxy?,
-        postGlobally: Bool
+        context: PostingContext
     ) {
         guard count > 0 else { return }
         for _ in 0..<count {
             postKey(
                 kVKLeftArrow,
-                source: source,
-                proxy: proxy,
-                postGlobally: postGlobally,
+                context: context,
                 flags: .maskShift
             )
         }
     }
 
     private static func postText(
-        _ units: [UInt16],
-        source: CGEventSource?,
-        proxy: CGEventTapProxy?,
-        postGlobally: Bool,
-        perCharacter: Bool,
-        maxChunkSize: Int,
+        _ elements: [TextInjectionElement],
+        context: PostingContext,
         delayUS: UInt32
     ) {
-        guard !units.isEmpty else { return }
-        let text = String(decoding: units, as: UTF16.self)
-        var chunk: [UInt16] = []
-
-        func flush() {
-            guard !chunk.isEmpty else { return }
-            postTextEvent(
-                chunk,
-                source: source,
-                proxy: proxy,
-                postGlobally: postGlobally
-            )
-            delay(delayUS)
-            chunk.removeAll(keepingCapacity: true)
-        }
-
-        for character in text {
-            if character == "\n" || character == "\r" || character == "\r\n" {
-                flush()
+        for element in elements {
+            switch element {
+            case let .text(units):
+                postTextEvent(units, context: context)
+            case .returnKey:
                 postKey(
                     kVKReturn,
-                    source: source,
-                    proxy: proxy,
-                    postGlobally: postGlobally
+                    context: context
                 )
-                delay(delayUS)
-                continue
-            }
-            if character == "\t" {
-                flush()
+            case .tabKey:
                 postKey(
                     kVKTab,
-                    source: source,
-                    proxy: proxy,
-                    postGlobally: postGlobally
+                    context: context
                 )
-                delay(delayUS)
-                continue
             }
-
-            let characterUnits = Array(String(character).utf16)
-            if perCharacter {
-                flush()
-                postTextEvent(
-                    characterUnits,
-                    source: source,
-                    proxy: proxy,
-                    postGlobally: postGlobally
-                )
-                delay(delayUS)
-            } else {
-                if !chunk.isEmpty, chunk.count + characterUnits.count > maxChunkSize {
-                    flush()
-                }
-                chunk.append(contentsOf: characterUnits)
-            }
+            delay(delayUS)
         }
-        flush()
     }
 
     private static func postTextEvent(
         _ units: [UInt16],
-        source: CGEventSource?,
-        proxy: CGEventTapProxy?,
-        postGlobally: Bool
+        context: PostingContext
     ) {
-        guard let down = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true),
-              let up = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false)
+        guard let down = CGEvent(keyboardEventSource: context.source, virtualKey: 0, keyDown: true),
+              let up = CGEvent(keyboardEventSource: context.source, virtualKey: 0, keyDown: false)
         else { return }
         var mutableUnits = units
         down.keyboardSetUnicodeString(
@@ -337,26 +271,24 @@ enum TextInjector {
         )
         stamp(down)
         stamp(up)
-        post(down, proxy: proxy, globally: postGlobally)
-        post(up, proxy: proxy, globally: postGlobally)
+        post(down, context: context)
+        post(up, context: context)
     }
 
     private static func postKey(
         _ keycode: CGKeyCode,
-        source: CGEventSource?,
-        proxy: CGEventTapProxy?,
-        postGlobally: Bool,
+        context: PostingContext,
         flags: CGEventFlags = []
     ) {
-        guard let down = CGEvent(keyboardEventSource: source, virtualKey: keycode, keyDown: true),
-              let up = CGEvent(keyboardEventSource: source, virtualKey: keycode, keyDown: false)
+        guard let down = CGEvent(keyboardEventSource: context.source, virtualKey: keycode, keyDown: true),
+              let up = CGEvent(keyboardEventSource: context.source, virtualKey: keycode, keyDown: false)
         else { return }
         down.flags = flags
         up.flags = flags
         stamp(down)
         stamp(up)
-        post(down, proxy: proxy, globally: postGlobally)
-        post(up, proxy: proxy, globally: postGlobally)
+        post(down, context: context)
+        post(up, context: context)
     }
 
     private static func stamp(_ event: CGEvent) {
@@ -365,14 +297,29 @@ enum TextInjector {
 
     private static func post(
         _ event: CGEvent,
-        proxy: CGEventTapProxy?,
-        globally: Bool
+        context: PostingContext
     ) {
-        if globally {
-            event.post(tap: .cgSessionEventTap)
+        if context.postGlobally {
+            if let targetProcessID = context.targetProcessID {
+                event.postToPid(targetProcessID)
+            } else {
+                event.post(tap: .cgSessionEventTap)
+            }
         } else {
-            event.tapPostEvent(proxy)
+            event.tapPostEvent(context.proxy)
         }
+    }
+
+    /// Plain/shift/option keyboard events are application-targeted and safe to
+    /// pin to their original process. System shortcut and pointer events must
+    /// re-enter the session stream so macOS can perform its normal routing.
+    private static func deferredTargetProcessID(for event: CGEvent) -> pid_t? {
+        guard event.type == .keyDown || event.type == .keyUp else { return nil }
+        let systemModifiers: CGEventFlags = [.maskCommand, .maskControl, .maskSecondaryFn]
+        guard event.flags.intersection(systemModifiers).isEmpty else { return nil }
+        return EventRouting.processID(
+            rawValue: event.getIntegerValueField(.eventTargetUnixProcessID)
+        )
     }
 
     private static func delay(_ microseconds: UInt32) {
@@ -381,42 +328,4 @@ enum TextInjector {
         }
     }
 
-    private static func boundedSlowDelay(configuredUS: UInt32, steps: Int) -> UInt32 {
-        guard configuredUS > 0, steps > 0 else { return 0 }
-        let budgetPerStep = maxSlowPacingUS / UInt64(steps)
-        return UInt32(min(UInt64(configuredUS), budgetPerStep))
-    }
-
-    private static func slowTextEventCount(
-        _ text: String,
-        perCharacter: Bool,
-        maxChunkSize: Int
-    ) -> Int {
-        if perCharacter {
-            return text.count
-        }
-
-        var events = 0
-        var chunkUnits = 0
-        for character in text {
-            if character == "\n" || character == "\r" || character == "\r\n"
-                || character == "\t"
-            {
-                if chunkUnits > 0 {
-                    events += 1
-                    chunkUnits = 0
-                }
-                events += 1
-                continue
-            }
-
-            let unitCount = String(character).utf16.count
-            if chunkUnits > 0, chunkUnits + unitCount > maxChunkSize {
-                events += 1
-                chunkUnits = 0
-            }
-            chunkUnits += unitCount
-        }
-        return events + (chunkUnits > 0 ? 1 : 0)
-    }
 }

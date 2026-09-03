@@ -25,13 +25,14 @@ enum SelfTest {
             object: nil, queue: nil
         ) { note in
             let s = (note.object as? String) ?? ""
+            let delayUS = (note.userInfo?["delay_us"] as? NSNumber)?.uint32Value ?? 25_000
             log.info("selftest received \(s.count, privacy: .public) chars")
             guard !s.isEmpty else { return }
-            DispatchQueue.global(qos: .userInitiated).async { typeString(s) }
+            DispatchQueue.global(qos: .userInitiated).async { typeString(s, delayUS: delayUS) }
         }
     }
 
-    private static func typeString(_ s: String) {
+    private static func typeString(_ s: String, delayUS: UInt32) {
         let source = CGEventSource(stateID: .privateState)
         for ch in s {
             let vk: CGKeyCode
@@ -39,6 +40,10 @@ enum SelfTest {
             case "⌫": vk = 51
             case "⎋": vk = 53
             case "⏎": vk = 36
+            case "←": vk = 123
+            case "→": vk = 124
+            case "↓": vk = 125
+            case "↑": vk = 126
             default: vk = 0
             }
             guard let down = CGEvent(keyboardEventSource: source, virtualKey: vk, keyDown: true),
@@ -51,7 +56,9 @@ enum SelfTest {
             }
             down.post(tap: .cgSessionEventTap)
             up.post(tap: .cgSessionEventTap)
-            usleep(25_000)
+            if delayUS > 0 {
+                usleep(delayUS)
+            }
         }
         log.info("selftest done typing")
     }

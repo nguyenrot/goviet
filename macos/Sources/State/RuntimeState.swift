@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 /// Injection strategy per app — where the per-app landmines are defused.
 enum InjectionStrategy: String, Codable, Sendable {
@@ -16,6 +17,13 @@ struct RuntimeProcessingSnapshot: Sendable {
     let shouldProcess: Bool
     let strategy: InjectionStrategy
     let slowDelayUS: UInt32
+    let frontProcessID: pid_t?
+}
+
+struct RuntimeModeChange: Sendable {
+    let bundleID: String
+    let processID: pid_t?
+    let vietnameseOn: Bool
 }
 
 /// Snapshot of everything the tap callback needs, guarded by one lock.
@@ -30,6 +38,7 @@ final class RuntimeState: @unchecked Sendable {
     private var _strategy: InjectionStrategy = .fast
     private var _slowDelayUS: UInt32 = 8000
     private var _frontBundleID: String = ""
+    private var _frontProcessID: pid_t?
 
     var vietnameseOn: Bool {
         get { lock.withLock { _vietnameseOn } }
@@ -54,19 +63,38 @@ final class RuntimeState: @unchecked Sendable {
         lock.withLock { _frontBundleID }
     }
 
+    var frontProcessID: pid_t? {
+        lock.withLock { _frontProcessID }
+    }
+
     /// Commit an app switch as one state transition. A tap callback therefore
     /// sees either the complete old context or the complete new one.
     func applyAppContext(
         bundleID: String,
+        processID: pid_t?,
         strategy: InjectionStrategy,
         vietnameseOn: Bool?
     ) {
         lock.withLock {
             _frontBundleID = bundleID
+            _frontProcessID = processID
             _strategy = strategy
             if let vietnameseOn {
                 _vietnameseOn = vietnameseOn
             }
+        }
+    }
+
+    /// The hotkey callback runs on the tap thread. Apply its mode transition
+    /// synchronously so the very next key cannot observe the old language.
+    func toggleVietnamese() -> RuntimeModeChange {
+        lock.withLock {
+            _vietnameseOn.toggle()
+            return RuntimeModeChange(
+                bundleID: _frontBundleID,
+                processID: _frontProcessID,
+                vietnameseOn: _vietnameseOn
+            )
         }
     }
 
@@ -77,7 +105,8 @@ final class RuntimeState: @unchecked Sendable {
             RuntimeProcessingSnapshot(
                 shouldProcess: _vietnameseOn && !_secureInput && _strategy != .passthrough,
                 strategy: _strategy,
-                slowDelayUS: _slowDelayUS
+                slowDelayUS: _slowDelayUS,
+                frontProcessID: _frontProcessID
             )
         }
     }

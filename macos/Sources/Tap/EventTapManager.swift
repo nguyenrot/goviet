@@ -7,12 +7,13 @@ private let log = Logger(subsystem: "com.kynguyen.goviet", category: "tap")
 /// "A non-nil tap is not a healthy tap" — re-enable on tapDisabledBy* AND
 /// poll tapIsEnabled from a watchdog, because the disable event can be lost.
 final class EventTapManager {
+    private let tapLock = NSLock()
     private var tap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var thread: Thread?
     private var watchdog: Timer?
 
-    var onToggleHotkey: (() -> Void)?
+    var onToggleHotkey: ((RuntimeModeChange) -> Void)?
 
     func start() {
         let thread = Thread { [weak self] in
@@ -60,7 +61,7 @@ final class EventTapManager {
             log.error("tapCreate failed — missing Accessibility permission?")
             return
         }
-        self.tap = tap
+        tapLock.withLock { self.tap = tap }
         let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         self.runLoopSource = source
         CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
@@ -70,9 +71,10 @@ final class EventTapManager {
     }
 
     private func checkHealth() {
-        guard let tap else { return }
+        guard let tap = tapLock.withLock({ self.tap }) else { return }
         if !CGEvent.tapIsEnabled(tap: tap) {
             log.warning("watchdog: tap found disabled — re-enabling")
+            resetAfterInputDiscontinuity()
             CGEvent.tapEnable(tap: tap, enable: true)
         }
     }
@@ -80,8 +82,9 @@ final class EventTapManager {
     private func handle(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         // Tap disabled (slow callback or user input protection) → revive.
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-            if let tap {
+            if let tap = tapLock.withLock({ self.tap }) {
                 log.warning("tap disabled (\(type.rawValue, privacy: .public)) — re-enabling")
+                resetAfterInputDiscontinuity()
                 CGEvent.tapEnable(tap: tap, enable: true)
             }
             return Unmanaged.passUnretained(event)
@@ -108,7 +111,9 @@ final class EventTapManager {
                 keycode: event.getIntegerValueField(.keyboardEventKeycode)
             )
             if verdict.fire {
-                onToggleHotkey?()
+                let change = RuntimeState.shared.toggleVietnamese()
+                EngineBridge.clearAll()
+                onToggleHotkey?(change)
             }
             return verdict.consume ? nil : passOrDefer(event)
 
@@ -124,6 +129,22 @@ final class EventTapManager {
         HotkeyDetector.shared.keyPressed()
 
         let state = RuntimeState.shared.processingSnapshot
+        let eventProcessID = EventRouting.processID(
+            rawValue: event.getIntegerValueField(.eventTargetUnixProcessID)
+        )
+        guard EventRouting.isSameProcess(
+            expected: state.frontProcessID,
+            actual: eventProcessID
+        ) else {
+            // NSWorkspace activation notifications arrive on the main thread
+            // and can lag the first key aimed at the new application. Never
+            // apply a replacement with the previous app's strategy/state.
+            log.notice(
+                "target changed before app monitor expected=\(state.frontProcessID ?? 0, privacy: .public) actual=\(eventProcessID ?? 0, privacy: .public); passing key through"
+            )
+            EngineBridge.resetWord()
+            return passOrDefer(event)
+        }
         guard state.shouldProcess else {
             return passOrDefer(event)
         }
@@ -151,6 +172,7 @@ final class EventTapManager {
                 text: text,
                 strategy: state.strategy,
                 slowDelayUS: state.slowDelayUS,
+                targetProcessID: eventProcessID ?? state.frontProcessID,
                 proxy: proxy,
                 originalEvent: forward ? event : nil
             )
@@ -181,5 +203,13 @@ final class EventTapManager {
             return nil
         }
         return Unmanaged.passUnretained(event)
+    }
+
+    /// A disabled tap may have missed arbitrary physical edits. Keeping the
+    /// previous word or armed hotkey would make the next replacement delete
+    /// text that the engine never observed.
+    private func resetAfterInputDiscontinuity() {
+        EngineBridge.clearAll()
+        HotkeyDetector.shared.reset()
     }
 }

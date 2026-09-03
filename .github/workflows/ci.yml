@@ -36,5 +36,6 @@ jobs:
         with:
           workspaces: rust
       - run: brew install xcodegen cbindgen
+      - run: swift test --package-path macos
       - run: make app
       - run: lipo build/Release/GoViet.app/Contents/MacOS/GoViet -verify_arch arm64 x86_64

@@ -77,4 +77,9 @@ final class HotkeyDetector: @unchecked Sendable {
     func keyPressed() {
         lock.withLock { armed = false }
     }
+
+    /// Drop a partially observed chord after an event-tap discontinuity.
+    func reset() {
+        lock.withLock { armed = false }
+    }
 }

@@ -41,6 +41,7 @@ app: core
 test:
 	cd rust && cargo test
 	cd rust && cargo clippy --all-targets -- -D warnings
+	cd macos && swift test
 
 sign: app
 	codesign --force --deep --options runtime --sign "$(IDENTITY)" $(APP)

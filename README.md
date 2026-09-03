@@ -8,7 +8,7 @@ trên menu bar, gõ được ngay trong mọi ứng dụng, chuyển Anh–Việ
 Cài đặt), không cần chuyển input source.
 
 **Kiến trúc:** Rust engine (thuần logic, unit-test đầy đủ) + Swift shell
-(CGEventTap + bơm phím có đánh dấu chống race).
+(CGEventTap + bơm phím có đánh dấu chống race và ghim process đích).
 
 ## Tính năng
 
@@ -36,7 +36,7 @@ Build từ source — yêu cầu: Xcode, Rust cài qua
 
 ```bash
 make install   # build core Rust + app, ký, cài vào /Applications, mở app
-make test      # cargo test + clippy
+make test      # Rust test/clippy + Swift XCTest
 make dmg       # DMG universal arm64 + x86_64 để cài máy khác
 make watch     # xem log runtime
 ```

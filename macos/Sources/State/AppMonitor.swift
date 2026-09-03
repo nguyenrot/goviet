@@ -14,17 +14,25 @@ final class AppMonitor {
             queue: .main
         ) { [weak self] note in
             let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
-            self?.frontAppChanged(bundleID: app?.bundleIdentifier ?? "")
+            self?.frontAppChanged(
+                bundleID: app?.bundleIdentifier ?? "",
+                processID: app?.processIdentifier
+            )
         }
-        frontAppChanged(bundleID: NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "")
+        let app = NSWorkspace.shared.frontmostApplication
+        frontAppChanged(
+            bundleID: app?.bundleIdentifier ?? "",
+            processID: app?.processIdentifier
+        )
     }
 
     /// Re-evaluate rules for the current app (after settings changes).
     func refresh() {
-        frontAppChanged(bundleID: RuntimeState.shared.frontBundleID)
+        let state = RuntimeState.shared
+        frontAppChanged(bundleID: state.frontBundleID, processID: state.frontProcessID)
     }
 
-    private func frontAppChanged(bundleID: String) {
+    private func frontAppChanged(bundleID: String, processID: pid_t?) {
         let store = SettingsStore.shared
         let state = RuntimeState.shared
 
@@ -42,6 +50,7 @@ final class AppMonitor {
         EngineBridge.clearAll()
         state.applyAppContext(
             bundleID: bundleID,
+            processID: processID,
             strategy: strategy,
             vietnameseOn: remembered
         )
