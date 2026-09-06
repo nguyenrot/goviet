@@ -114,6 +114,35 @@ fn any_parse(s: &str, check: impl Fn(&str) -> bool) -> bool {
     false
 }
 
+/// Chat/place abbreviations that use Vietnamese composition (đ, ô, tones)
+/// but are not valid syllables. Keep `đc`/`đn`/`òh` instead of restoring
+/// to the raw keys `ddc`/`ddn`/`ofh`.
+pub fn kept_abbreviation(letters: &[Letter], tone: Tone) -> bool {
+    if letters.len() < 2 || letters.len() > 5 {
+        return false;
+    }
+    let no_vowel = letters.iter().all(|l| !l.is_vowel());
+    let has_stroke = letters.iter().any(|l| l.mark == Mark::Stroke);
+    if no_vowel && has_stroke {
+        return true;
+    }
+    // kô (không)
+    if letters.len() == 2
+        && letters[0].base == 'k'
+        && letters[0].mark == Mark::None
+        && letters[1].base == 'o'
+        && letters[1].mark == Mark::Circumflex
+    {
+        return true;
+    }
+    // òh / àh / ùh: a toned vowel plus h
+    letters.len() == 2
+        && letters[0].is_vowel()
+        && letters[1].base == 'h'
+        && letters[1].mark == Mark::None
+        && tone != Tone::None
+}
+
 /// Can `letters` (+ current tone) still grow into a valid Vietnamese syllable?
 pub fn valid_prefix(letters: &[Letter], tone: Tone) -> bool {
     // Any non a-z base (w, digits, stray symbols) disqualifies immediately,
@@ -192,4 +221,35 @@ pub fn valid_full(letters: &[Letter], tone: Tone) -> bool {
 /// i.e. rendering differs from the raw latin letters.
 pub fn is_transformed(letters: &[Letter], tone: Tone) -> bool {
     tone != Tone::None || letters.iter().any(|l| l.mark != Mark::None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn stroke_d() -> Letter {
+        Letter { base: 'd', mark: Mark::Stroke, upper: false, from_w: false }
+    }
+
+    #[test]
+    fn keeps_consonant_abbreviations_with_d() {
+        let dc = [stroke_d(), Letter::plain('c', false)];
+        let dn = [stroke_d(), Letter::plain('n', false)];
+        let add = [Letter::plain('a', false), stroke_d()];
+        assert!(kept_abbreviation(&dc, Tone::None));
+        assert!(kept_abbreviation(&dn, Tone::None));
+        assert!(!kept_abbreviation(&add, Tone::None));
+    }
+
+    #[test]
+    fn keeps_oh_particle_and_ko_circumflex() {
+        let oh = [Letter::plain('o', false), Letter::plain('h', false)];
+        let ko = [
+            Letter::plain('k', false),
+            Letter { base: 'o', mark: Mark::Circumflex, upper: false, from_w: false },
+        ];
+        assert!(kept_abbreviation(&oh, Tone::Grave));
+        assert!(!kept_abbreviation(&oh, Tone::None));
+        assert!(kept_abbreviation(&ko, Tone::None));
+    }
 }

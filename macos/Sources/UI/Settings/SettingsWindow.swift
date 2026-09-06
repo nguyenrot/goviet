@@ -89,16 +89,13 @@ struct MacrosTab: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle("Bật gõ tắt", isOn: $store.settings.engine.macrosEnabled)
-            Text("Gõ tắt rồi phím cách: đc → được, đn → Đà Nẵng, ko → không.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
             Table($store.settings.macros, selection: $selection) {
                 TableColumn("Gõ tắt") { $entry in
-                    TextField("vd: đc", text: $entry.trigger)
+                    TextField("vd: btw", text: $entry.trigger)
                 }
                 .width(120)
                 TableColumn("Thay bằng") { $entry in
-                    TextField("vd: được", text: $entry.expansion)
+                    TextField("vd: by the way", text: $entry.expansion)
                 }
             }
             HStack {
@@ -113,7 +110,6 @@ struct MacrosTab: View {
                 } label: { Image(systemName: "minus") }
                 .disabled(selection == nil)
                 Spacer()
-                Button("Thêm mặc định") { store.addDefaultMacros() }
                 Button("Nhập JSON…") { importMacros() }
                 Button("Xuất JSON…") { exportMacros() }
             }

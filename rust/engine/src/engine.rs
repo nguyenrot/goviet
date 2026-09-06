@@ -5,7 +5,7 @@ use crate::compose::{Applied, Composer};
 use crate::config::Config;
 use crate::keys::{self, KeyInput};
 use crate::macros::MacroTable;
-use crate::validation::valid_prefix;
+use crate::validation::{kept_abbreviation, valid_prefix};
 
 /// Words longer than this stop being treated as Vietnamese (URLs, passwords).
 const MAX_WORD_LEN: usize = 32;
@@ -206,8 +206,8 @@ impl Engine {
 
         // English auto-restore: a transformation happened earlier but the
         // word can no longer be Vietnamese → put the raw keystrokes back.
-        // Macro triggers like "đc"/"đn"/"òh" are not valid syllables, so they
-        // must be exempt or the shortcut is restored to "ddc" before space.
+        // Abbreviations (đc, đn, òh) and user macro triggers are not valid
+        // syllables; keep the composed form instead of restoring to ddc/ofh.
         if self.cfg.english_auto_restore
             && !self.suppress_restore
             && !self.restored
@@ -215,7 +215,7 @@ impl Engine {
             && outcome == Applied::Appended
             && self.is_word_transformed()
             && !valid_prefix(&self.comp.letters, self.comp.tone)
-            && !self.matches_macro(&self.composed())
+            && !self.keep_composed()
         {
             self.restore_literal_preserving_capitalization();
             self.restored = true;
@@ -231,8 +231,9 @@ impl Engine {
         self.composed() != self.literal_string()
     }
 
-    fn matches_macro(&self, word: &str) -> bool {
-        self.cfg.macros_enabled && self.macros.contains(word)
+    fn keep_composed(&self) -> bool {
+        kept_abbreviation(&self.comp.letters, self.comp.tone)
+            || (self.cfg.macros_enabled && self.macros.contains(&self.composed()))
     }
 
     fn diff(&self, prev: &str, typed: char) -> Action {
@@ -272,7 +273,10 @@ impl Engine {
             // prefix, re-enable composition so the next modifier key transforms
             // ("muowa"⌫⌫ → "muo", then "w" → "mươ"). A remainder that is still
             // not Vietnamese ("user"⌫ → "use") stays inert.
-            if self.restored && valid_prefix(&self.comp.letters, self.comp.tone) {
+            if self.restored
+                && (valid_prefix(&self.comp.letters, self.comp.tone)
+                    || kept_abbreviation(&self.comp.letters, self.comp.tone))
+            {
                 self.restored = false;
             }
         }
@@ -326,6 +330,7 @@ impl Engine {
             let literal = self.literal_string();
             if word != literal
                 && !crate::validation::valid_full(&self.comp.letters, self.comp.tone)
+                && !kept_abbreviation(&self.comp.letters, self.comp.tone)
             {
                 action = Action::Replace {
                     backspaces: word.chars().count(),

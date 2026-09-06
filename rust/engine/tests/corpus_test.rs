@@ -139,19 +139,13 @@ fn tone_styles() {
 
 #[test]
 fn macros_expand() {
-    let json = r#"{
-        "btw": "by the way",
-        "vn": "Việt Nam",
-        "mail": "phamkynguyen753@gmail.com",
-        "dc": "được",
-        "đc": "được",
-        "ko": "không",
-        "òh": "ồ",
-        "dn": "Đà Nẵng",
-        "đn": "Đà Nẵng",
-        "hn": "Hà Nội"
-    }"#;
+    let json = r#"{"btw": "by the way", "vn": "Việt Nam", "mail": "phamkynguyen753@gmail.com"}"#;
     run_corpus("macros.tsv", telex_cfg(), Some(json));
+}
+
+#[test]
+fn abbreviations_are_kept() {
+    run_corpus("abbreviations.tsv", telex_cfg(), None);
 }
 
 #[test]

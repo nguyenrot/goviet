@@ -1,0 +1,15 @@
+# Abbreviations keep their composed form; they are not expanded and not
+# English-restored to the raw keys. Space rows also cover commit-restore.
+ddc	đc
+ddc 	đc 
+ddn	đn
+ddn 	đn 
+ddn.	đn.
+ofh	òh
+ofh 	òh 
+koo	kô
+ddt	đt
+ddl	đl
+# English auto-restore still wins for real English words.
+add	add
+two 	two 

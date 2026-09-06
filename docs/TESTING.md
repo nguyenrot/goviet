@@ -54,9 +54,9 @@ Câu mẫu: `Toàn thể nhân dân Việt Nam quyết tâm giữ vững độc 
 - **Khởi động cùng máy**: bật trong Settings → reboot → icon menu bar có mặt.
 - **Nâng cấp config**: dùng một `config.json` cũ thiếu các field mới và thiếu
   `id` trong macro → mở app → các giá trị cũ/macro vẫn còn, field thiếu nhận
-  default và file được ghi lại với `config_version`. File `config_version` 1
-  với `macros: []` phải được gieo sẵn viết tắt tiếng Việt (`đc`→được,
-  `đn`→Đà Nẵng) mà không ghi đè trigger người dùng đã có. Làm hỏng cú pháp JSON →
+  default và file được ghi lại với `config_version`. File `config_version` 2
+  (bản 0.2.5 gieo macro bung `đc`→được) phải gỡ các cặp seed đó, giữ macro
+  người dùng tự thêm. Làm hỏng cú pháp JSON →
   app tạo `config.invalid-<uuid>.json` trước khi tạo config mặc định. Đặt
   `config_version` lớn hơn bản app hỗ trợ → file phải được giữ nguyên ngay cả
   sau khi đổi một tùy chọn trong UI.
@@ -80,6 +80,9 @@ Câu mẫu: `Toàn thể nhân dân Việt Nam quyết tâm giữ vững độc 
 - **Autocaps + khôi phục tiếng Anh**: bật cả hai tùy chọn, gõ
   `a. hello ` và `a. text ` → phải ra `a. Hello ` và `a. Text `; ESC vẫn trả
   đúng phím gốc khi người dùng chủ động yêu cầu.
+- **Viết tắt giữ nguyên**: `ddc`/`ddn`/`ofh` ra `đc`/`đn`/`òh` (kể cả khi
+  nhấn cách), không bung thành được/Đà Nẵng/ồ và không trả về `ddc`/`ofh`.
+  `add` và `two ` vẫn khôi phục tiếng Anh như cũ.
 - **Macro rất dài**: nhập macro có expansion dài hơn 65.535 UTF-16 units,
   expand và kiểm tra không bị cắt ở mốc 65.535; thử kèm emoji ở hai phía mốc.
 - **Clean/universal build**: từ fresh clone chạy `make app` khi chưa có

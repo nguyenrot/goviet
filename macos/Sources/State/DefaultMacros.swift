@@ -1,22 +1,13 @@
 import Foundation
 
-/// Built-in gõ tắt: viết tắt chat/văn phòng và địa danh thường gặp.
-/// Triggers match the composed word (`ddc` → `đc`, `ddn` → `đn`).
+/// v0.2.5 accidentally seeded expansion macros (đc→được, đn→Đà Nẵng, …).
+/// v3 strips those exact pairs so abbreviations stay abbreviated.
 enum DefaultMacros {
-    static let entries: [MacroEntry] = merging(into: [])
-
-    /// Add any missing built-in shortcuts without overwriting the user's.
-    static func merging(into existing: [MacroEntry]) -> [MacroEntry] {
-        var seen = Set(
-            existing.map { $0.trigger.lowercased() }.filter { !$0.isEmpty }
-        )
-        var result = existing
-        for (trigger, expansion) in pairs {
-            let key = trigger.lowercased()
-            guard !key.isEmpty, seen.insert(key).inserted else { continue }
-            result.append(MacroEntry(trigger: trigger, expansion: expansion))
+    static func stripSeeded(from existing: [MacroEntry]) -> [MacroEntry] {
+        let seeded = Set(pairs.map { SeededMacro(trigger: $0.0, expansion: $0.1) })
+        return existing.filter {
+            !seeded.contains(SeededMacro(trigger: $0.trigger, expansion: $0.expansion))
         }
-        return sorted(result)
     }
 
     static func sorted(_ macros: [MacroEntry]) -> [MacroEntry] {
@@ -27,11 +18,17 @@ enum DefaultMacros {
 
     private static let vi = Locale(identifier: "vi_VN")
 
-    /// ASCII + composed forms of the same shortcut (`dc`/`đc`) so Telex and
-    /// already-accented typing both expand. Skip 1-letter keys and collisions
-    /// with units (`kg`, `cm`) or real Vietnamese words (`na`, `la`).
+    private struct SeededMacro: Hashable {
+        let trigger: String
+        let expansion: String
+
+        init(trigger: String, expansion: String) {
+            self.trigger = trigger.lowercased()
+            self.expansion = expansion
+        }
+    }
+
     private static let pairs: [(String, String)] = [
-        // Chat / văn phòng
         ("dc", "được"),
         ("đc", "được"),
         ("ko", "không"),
@@ -69,8 +66,6 @@ enum DefaultMacros {
         ("òh", "ồ"),
         ("uh", "ừ"),
         ("ah", "à"),
-
-        // Tổ chức / học đường
         ("vn", "Việt Nam"),
         ("tp", "thành phố"),
         ("clb", "câu lạc bộ"),
@@ -84,8 +79,6 @@ enum DefaultMacros {
         ("bs", "bác sĩ"),
         ("lhq", "Liên Hợp Quốc"),
         ("tw", "Trung ương"),
-
-        // Địa danh
         ("hn", "Hà Nội"),
         ("hcm", "Hồ Chí Minh"),
         ("tphcm", "TP. Hồ Chí Minh"),
