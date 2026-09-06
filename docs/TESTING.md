@@ -54,7 +54,9 @@ Câu mẫu: `Toàn thể nhân dân Việt Nam quyết tâm giữ vững độc 
 - **Khởi động cùng máy**: bật trong Settings → reboot → icon menu bar có mặt.
 - **Nâng cấp config**: dùng một `config.json` cũ thiếu các field mới và thiếu
   `id` trong macro → mở app → các giá trị cũ/macro vẫn còn, field thiếu nhận
-  default và file được ghi lại với `config_version`. Làm hỏng cú pháp JSON →
+  default và file được ghi lại với `config_version`. File `config_version` 1
+  với `macros: []` phải được gieo sẵn viết tắt tiếng Việt (`đc`→được,
+  `đn`→Đà Nẵng) mà không ghi đè trigger người dùng đã có. Làm hỏng cú pháp JSON →
   app tạo `config.invalid-<uuid>.json` trước khi tạo config mặc định. Đặt
   `config_version` lớn hơn bản app hỗ trợ → file phải được giữ nguyên ngay cả
   sau khi đổi một tùy chọn trong UI.

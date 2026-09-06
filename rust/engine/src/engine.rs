@@ -206,6 +206,8 @@ impl Engine {
 
         // English auto-restore: a transformation happened earlier but the
         // word can no longer be Vietnamese → put the raw keystrokes back.
+        // Macro triggers like "đc"/"đn"/"òh" are not valid syllables, so they
+        // must be exempt or the shortcut is restored to "ddc" before space.
         if self.cfg.english_auto_restore
             && !self.suppress_restore
             && !self.restored
@@ -213,6 +215,7 @@ impl Engine {
             && outcome == Applied::Appended
             && self.is_word_transformed()
             && !valid_prefix(&self.comp.letters, self.comp.tone)
+            && !self.matches_macro(&self.composed())
         {
             self.restore_literal_preserving_capitalization();
             self.restored = true;
@@ -226,6 +229,10 @@ impl Engine {
 
     fn is_word_transformed(&self) -> bool {
         self.composed() != self.literal_string()
+    }
+
+    fn matches_macro(&self, word: &str) -> bool {
+        self.cfg.macros_enabled && self.macros.contains(word)
     }
 
     fn diff(&self, prev: &str, typed: char) -> Action {

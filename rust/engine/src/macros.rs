@@ -21,6 +21,10 @@ impl MacroTable {
         self.map.is_empty()
     }
 
+    pub fn contains(&self, word: &str) -> bool {
+        !self.map.is_empty() && self.map.contains_key(&word.to_lowercase())
+    }
+
     /// Look up `word` case-insensitively; adapt the expansion's case to how
     /// the trigger was typed (ALL CAPS / Capitalized / as-is).
     pub fn expand(&self, word: &str) -> Option<String> {
@@ -41,5 +45,26 @@ impl MacroTable {
         } else {
             Some(expansion.clone())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn vietnamese_abbreviations_follow_typed_case() {
+        let table = MacroTable::from_json(
+            r#"{"đc":"được","òh":"ồ","đn":"Đà Nẵng","hn":"Hà Nội"}"#,
+        );
+        assert_eq!(table.expand("đc").as_deref(), Some("được"));
+        assert_eq!(table.expand("Đc").as_deref(), Some("Được"));
+        assert_eq!(table.expand("ĐC").as_deref(), Some("ĐƯỢC"));
+        assert_eq!(table.expand("òh").as_deref(), Some("ồ"));
+        assert_eq!(table.expand("đn").as_deref(), Some("Đà Nẵng"));
+        assert_eq!(table.expand("Đn").as_deref(), Some("Đà Nẵng"));
+        assert_eq!(table.expand("ĐN").as_deref(), Some("ĐÀ NẴNG"));
+        assert_eq!(table.expand("hn").as_deref(), Some("Hà Nội"));
+        assert_eq!(table.expand("dc"), None);
     }
 }

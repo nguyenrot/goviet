@@ -5,3 +5,14 @@ vn 	Việt Nam
 vn.	Việt Nam.
 mail 	phamkynguyen753@gmail.com 
 btwx 	btwx 
+dc 	được 
+# ddc/ddn/ofh compose to đc/đn/òh; auto-restore must not swallow the trigger.
+ddc 	được 
+ko 	không 
+ofh 	ồ 
+dn 	Đà Nẵng 
+ddn 	Đà Nẵng 
+hn 	Hà Nội 
+ddn.	Đà Nẵng.
+# Invalid composed forms that are not shortcuts still auto-restore.
+ddx 	ddx 

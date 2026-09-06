@@ -105,7 +105,8 @@ struct MacroEntry: Codable, Equatable, Identifiable {
 }
 
 struct AppSettings: Codable, Equatable {
-    static let currentConfigVersion = 1
+    /// v2 seeds built-in Vietnamese abbreviations and place-name shortcuts.
+    static let currentConfigVersion = 2
 
     var configVersion = currentConfigVersion
     var engine = EngineConfig()
@@ -116,7 +117,7 @@ struct AppSettings: Codable, Equatable {
     var excludedApps: [String] = []
     var strategyOverrides: [String: String] = [:]
     var slowDelayMS = 8.0
-    var macros: [MacroEntry] = []
+    var macros: [MacroEntry] = DefaultMacros.entries
     var launchAtLogin = false
 
     private enum CodingKeys: String, CodingKey {
@@ -179,6 +180,9 @@ struct AppSettings: Codable, Equatable {
             try values.decodeIfPresent(Double.self, forKey: .slowDelayMS) ?? 8.0
         )
         macros = try values.decodeIfPresent([MacroEntry].self, forKey: .macros) ?? []
+        if decodedVersion < 2 {
+            macros = DefaultMacros.merging(into: macros)
+        }
         launchAtLogin =
             try values.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? false
     }
@@ -383,7 +387,12 @@ final class SettingsStore: ObservableObject {
         let dict = try JSONDecoder().decode([String: String].self, from: data)
         var merged = settings.macros.filter { dict[$0.trigger] == nil }
         merged.append(contentsOf: dict.map { MacroEntry(trigger: $0.key, expansion: $0.value) })
-        settings.macros = merged.sorted { $0.trigger < $1.trigger }
+        settings.macros = DefaultMacros.sorted(merged)
+    }
+
+    /// Fill in built-in Vietnamese shortcuts the user does not already have.
+    func addDefaultMacros() {
+        settings.macros = DefaultMacros.merging(into: settings.macros)
     }
 }
 

@@ -17,6 +17,7 @@ let package = Package(
                 "Bridge",
                 "Inject/TextInjector.swift",
                 "State/AppMonitor.swift",
+                "State/DefaultMacros.swift",
                 "State/SecureInputMonitor.swift",
                 "State/SettingsStore.swift",
                 "Tap/EventTapManager.swift",

@@ -17,7 +17,7 @@ Cài đặt), không cần chuyển input source.
 - **Tự khôi phục từ tiếng Anh**: "text" không thành "tẽt", "add" không thành "ađ";
   từ sai chính tả tiếng Việt được trả về phím gốc khi kết thúc từ
 - Phím **ESC** trả lại đúng phím đã gõ ("việt" → "vieejt")
-- **Gõ tắt không giới hạn độ dài**, nhập/xuất JSON, thông minh theo hoa/thường
+- **Gõ tắt không giới hạn độ dài**, có sẵn viết tắt tiếng Việt (`đc`→được, `ko`→không, `òh`→ồ) và địa danh (`đn`→Đà Nẵng, `hn`→Hà Nội…); nhập/xuất JSON, thông minh theo hoa/thường
 - **Nhớ chế độ Anh/Việt theo từng ứng dụng** + danh sách loại trừ (game…)
 - Chiến lược bơm phím theo app: chậm cho terminal (iTerm2, Terminal, kitty…),
   select-and-retype cho Chromium (sửa lỗi loạn chữ ở thanh địa chỉ Chrome)
