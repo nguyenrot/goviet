@@ -43,3 +43,8 @@ ddieeuf	điều
 ddieeuj	điệu
 dduooi	đuôi
 dduooir	đuổi
+# Preserve the initial consonant when adding a tone after a number/boundary.
+1 xius	1 xíu
+1 xisu	1 xíu
+1 xius 2 chuts	1 xíu 2 chút
+1 xius 1 xius 1 xius	1 xíu 1 xíu 1 xíu

@@ -68,6 +68,12 @@ Câu mẫu: `Toàn thể nhân dân Việt Nam quyết tâm giữ vững độc 
   200 ký tự, expand rồi lập tức gõ `abc` và click vị trí khác → expansion phải
   đứng trước `abc`/click, không mất phím và log không có
   `tap disabled ... timeout`.
+- **Không mất chữ đầu khi đặt dấu**: trong Chrome (input, textarea,
+  contenteditable, thanh địa chỉ), Slack và các ô nhập Cursor, gõ liên tục
+  `1 xius ` và `1 xisu ` → đều phải ra `1 xíu `, giữ nguyên `x`.
+  Thử thêm `2 chuts `, xóa rồi gõ lại, giữ Shift để gõ chữ hoa, và vừa gõ
+  vừa chuyển app. Harness phải thử cả Fast/Slow/Selection với khoảng cách
+  phím 0, 1.000 và 25.000 µs; đặt timeout đủ cho chuỗi gõ và hàng đợi xả hết.
 - **Đổi app khi hàng đợi còn bận**: trong app `.slow`, gõ burst hoặc
   expand macro dài, rồi chuyển ngay sang app khác → phần thay thế và phím
   đã hoãn phải chỉ đi vào process ban đầu; app mới không được nhận

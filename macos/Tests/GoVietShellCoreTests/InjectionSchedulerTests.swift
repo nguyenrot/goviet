@@ -58,4 +58,39 @@ final class InjectionSchedulerTests: XCTestCase {
         XCTAssertFalse(scheduler.schedule(force: false) { ran.withValue { $0 = true } })
         XCTAssertFalse(ran.withValue { $0 })
     }
+
+    func testPacedReplacementCannotOvertakePrefixStillInSessionDelivery() {
+        for strategy in [InjectionStrategy.slow, .selectAndRetype] {
+            let queue = DispatchQueue(label: "InjectionSchedulerTests.prefix")
+            let scheduler = InjectionScheduler(queue: queue)
+            let screen = LockedBox("1 x")
+            var delayedSessionKeys = ""
+            // Simulate a slow session delivery path. Letters that bypass the
+            // serial PID stream arrive only after the replacement has finished.
+            for letter in ["i", "u"] {
+                let force = EventRouting.shouldSerializeKey(
+                    isKeyboardEvent: true, hasSystemModifiers: false,
+                    shouldProcess: true, strategy: strategy,
+                    expectedProcessID: 42, eventProcessID: 42
+                )
+                if !scheduler.schedule(force: force, operation: {
+                    screen.withValue { $0 += letter }
+                }) {
+                    delayedSessionKeys += letter
+                }
+                // Exercise the idle-queue boundary too: routing must stay the
+                // same even after the preceding letter has drained the queue.
+                queue.sync {}
+            }
+            XCTAssertTrue(scheduler.schedule(force: true) {
+                screen.withValue {
+                    $0.removeLast(2)
+                    $0 += "íu"
+                }
+            })
+            queue.sync {}
+            screen.withValue { $0 += delayedSessionKeys }
+            XCTAssertEqual(screen.withValue { $0 }, "1 xíu", "\(strategy)")
+        }
+    }
 }

@@ -14,6 +14,7 @@ enum AppProfiles {
             // Electron editors host terminals (Claude Code CLI) too.
             "com.microsoft.VSCode": .slow,
             "com.todesktop.230313mzl4w4u92": .slow, // Cursor
+            "com.tinyspeck.slackmacgap": .slow,
             // Chromium: backspace bursts fight omnibox autocomplete →
             // select-then-retype instead (the OpenKey "Fix Chromium" mechanism).
             "com.google.Chrome": .selectAndRetype,
@@ -29,6 +30,7 @@ enum AppProfiles {
         ]
         #if DEBUG
         profiles["com.kynguyen.goviet.integration-slow"] = .slow
+        profiles["com.kynguyen.goviet.integration-selection"] = .selectAndRetype
         #endif
         return profiles
     }()

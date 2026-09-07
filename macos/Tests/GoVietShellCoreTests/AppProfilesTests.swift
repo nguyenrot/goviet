@@ -12,6 +12,14 @@ final class AppProfilesTests: XCTestCase {
             .selectAndRetype
         )
         XCTAssertEqual(
+            AppProfiles.strategy(for: "com.tinyspeck.slackmacgap", overrides: [:]),
+            .slow
+        )
+        XCTAssertEqual(
+            AppProfiles.strategy(for: "com.todesktop.230313mzl4w4u92", overrides: [:]),
+            .slow
+        )
+        XCTAssertEqual(
             AppProfiles.strategy(for: "com.apple.TextEdit", overrides: [:]),
             .fast
         )

@@ -47,10 +47,9 @@ private final class InjectionRequest: @unchecked Sendable {
     }
 }
 
-/// Posts synthetic edits into the event stream. Fast paths stay at the tap
-/// point; slow paths run on a serial queue while EventTapManager defers later
-/// physical input behind them, preserving event order without timing out the
-/// tap callback.
+/// Fast edits stay at the tap point. Compatibility paths serialize physical
+/// keys and paced replacements through the same process-targeted stream,
+/// preserving event order without timing out the tap callback.
 enum TextInjector {
     private static let scheduler = InjectionScheduler.shared
     private static let kVKReturn: CGKeyCode = 36
@@ -84,7 +83,7 @@ enum TextInjector {
             originalEvent: originalEvent
         )
 
-        if scheduler.schedule(force: strategy == .slow, operation: {
+        if scheduler.schedule(force: strategy.usesSerialDelivery, operation: {
             perform(request, proxy: nil, postGlobally: true)
         }) {
             injectionLog.debug(
@@ -95,16 +94,17 @@ enum TextInjector {
         perform(request, proxy: proxy, postGlobally: false)
     }
 
-    /// If slow injection is pending, consume and replay this physical event on
-    /// the same serial queue. The marker prevents it from entering the engine
-    /// a second time; its first pass already updated engine state.
-    static func deferEventIfNeeded(_ event: CGEvent) -> Bool {
-        guard scheduler.hasPending else { return false }
+    /// Route ordinary typing through the same queue and posting endpoint as
+    /// paced replacements, even when the queue is idle. Otherwise a subsequent
+    /// PID-targeted edit can overtake a letter still in the session stream.
+    /// The marker prevents replayed keys from entering the engine twice.
+    static func deferEventIfNeeded(_ event: CGEvent, forceSerialDelivery: Bool = false) -> Bool {
+        guard forceSerialDelivery || scheduler.hasPending else { return false }
         guard let copy = event.copy() else { return false }
         copy.setIntegerValueField(.eventSourceUserData, value: kGoVietEventMarker)
         let boxed = SendableEvent(copy)
         let targetProcessID = deferredTargetProcessID(for: event)
-        return scheduler.schedule(force: false) {
+        return scheduler.schedule(force: forceSerialDelivery) {
             if let targetProcessID {
                 boxed.event.postToPid(targetProcessID)
             } else {
@@ -157,9 +157,9 @@ enum TextInjector {
                     ? Int.max : pacedSteps.partialValue,
                 totalBudgetUS: maxSlowPacingUS
             )
-            // A physical key returned from the session tap is delivered to the
-            // application asynchronously. Give it the configured compatibility
-            // interval before a PID-targeted backspace can overtake it.
+            // Give the target control time to settle before starting an edit.
+            // Ordering itself comes from routing letters and edits together;
+            // this compatibility interval is not a delivery barrier.
             delay(delayUS)
             deleteByBackspace(
                 request.backspaces,
@@ -172,18 +172,26 @@ enum TextInjector {
                 delayUS: delayUS
             )
         case .selectAndRetype:
+            let elements = TextInjectionPlanner.elements(
+                for: request.text,
+                perCharacter: false,
+                maxChunkSize: chunkSize
+            )
+            let delayUS = TextInjectionPlanner.boundedDelay(
+                configuredUS: request.slowDelayUS,
+                stepCount: request.backspaces + elements.count + 1,
+                totalBudgetUS: maxSlowPacingUS
+            )
+            delay(delayUS)
             selectLeft(
                 request.backspaces,
-                context: context
+                context: context,
+                delayUS: delayUS
             )
             postText(
-                TextInjectionPlanner.elements(
-                    for: request.text,
-                    perCharacter: false,
-                    maxChunkSize: chunkSize
-                ),
+                elements,
                 context: context,
-                delayUS: 0
+                delayUS: delayUS
             )
         case .passthrough:
             return
@@ -217,7 +225,8 @@ enum TextInjector {
 
     private static func selectLeft(
         _ count: Int,
-        context: PostingContext
+        context: PostingContext,
+        delayUS: UInt32
     ) {
         guard count > 0 else { return }
         for _ in 0..<count {
@@ -226,6 +235,7 @@ enum TextInjector {
                 context: context,
                 flags: .maskShift
             )
+            delay(delayUS)
         }
     }
 
@@ -260,6 +270,10 @@ enum TextInjector {
         guard let down = CGEvent(keyboardEventSource: context.source, virtualKey: 0, keyDown: true),
               let up = CGEvent(keyboardEventSource: context.source, virtualKey: 0, keyDown: false)
         else { return }
+        // Unicode already encodes case. Do not inherit Shift from selection
+        // events (or modifiers held on the physical keyboard) into text input.
+        down.flags = []
+        up.flags = []
         var mutableUnits = units
         down.keyboardSetUnicodeString(
             stringLength: mutableUnits.count,

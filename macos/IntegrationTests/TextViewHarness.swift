@@ -8,6 +8,12 @@ final class HarnessDelegate: NSObject, NSApplicationDelegate {
     private var window: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Assert the IME's output without native spelling/text substitutions
+        // introducing unrelated edits.
+        textView.isAutomaticSpellingCorrectionEnabled = false
+        textView.isAutomaticTextReplacementEnabled = false
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled = false
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 640, height: 320),
             styleMask: [.titled],

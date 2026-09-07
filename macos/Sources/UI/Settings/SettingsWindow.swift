@@ -175,7 +175,7 @@ struct AppsTab: View {
             }
             Divider()
             HStack {
-                Text("Độ trễ bơm phím cho terminal (ms)")
+                Text("Độ trễ bơm phím tương thích (ms)")
                 Slider(value: $store.settings.slowDelayMS, in: 1...30, step: 1)
                 Text("\(Int(store.settings.slowDelayMS))")
                     .frame(width: 30)

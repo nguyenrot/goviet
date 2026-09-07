@@ -11,6 +11,13 @@ enum InjectionStrategy: String, Codable, Sendable {
     case selectAndRetype
     /// Do not touch this app at all.
     case passthrough
+
+    /// These applications need one paced, process-targeted stream for both
+    /// physical typing and replacements. Mixing session delivery for letters
+    /// with postToPid for edits lets a backspace overtake its prefix.
+    var usesSerialDelivery: Bool {
+        self == .slow || self == .selectAndRetype
+    }
 }
 
 struct RuntimeProcessingSnapshot: Sendable {
