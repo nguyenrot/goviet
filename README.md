@@ -20,9 +20,9 @@ Cài đặt), không cần chuyển input source.
 - Phím **ESC** trả lại đúng phím đã gõ ("việt" → "vieejt")
 - **Gõ tắt không giới hạn độ dài**, nhập/xuất JSON, thông minh theo hoa/thường
 - **Nhớ chế độ Anh/Việt theo từng ứng dụng** + danh sách loại trừ (game…)
-- Chiến lược bơm phím theo app: chậm cho terminal, Cursor và Slack;
-  chọn rồi gõ lại có nhịp cho Chromium. Phím gõ và phím sửa dấu dùng chung
-  hàng đợi để tránh xóa nhầm chữ đầu khi ứng dụng xử lý chậm.
+- Chiến lược bơm phím theo app: chậm cho terminal và Cursor;
+  chọn rồi gõ lại ngay tại event tap cho Chromium. Phím thường được giữ
+  trên luồng hệ thống khi không có thao tác chèn chậm đang chạy.
 - Tự viết hoa đầu câu (tùy chọn), phát hiện secure input (ô mật khẩu) và
   hiện 🔒 trên menu bar
 - Watchdog tự hồi phục event tap; ký code bằng certificate ổn định nên

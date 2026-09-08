@@ -49,6 +49,19 @@ từng harness, lần lượt với `delay_us` 0, 1.000 và 25.000. Kết quả 
 harness thoát trước khi bắt đầu lượt tiếp theo để không chồng hai lần gõ.
 Hook dùng mã phím ANSI đúng cho chữ/số, không giả mọi phím thành phím A.
 
+Kiểm thử chữ a/phím tắt: `as casc cacs af ar ax aj aan awn aans awns`
+phải ra `á các các à ả ã ạ ân ăn ấn ắn`. Hook nhận các token `⌘a`,
+`⌘c`, `⌘v`, `⌘⇥` và phát đủ sự kiện nhấn/nhả Command cùng phím tương ứng.
+Đặt `GOVIET_HARNESS_SHORTCUTS=1` để harness xuất JSON gồm văn bản, số lần
+copy/paste/select-all và số lần mất focus. Clipboard được khôi phục khi
+harness kết thúc. Chuỗi `casc⌘a⌘c⌘v` phải giữ `các`, mỗi thao tác đúng
+một lần; `casc⌘⇥` phải chuyển focus khỏi harness.
+
+`userInfo["physical_keys"] = true` phát sự kiện ở HID tap và giữ mỗi phím
+10 ms trước khi nhả. Đây vẫn là phím mô phỏng, không thay thế thử bằng bàn
+phím thật trên Chrome, Slack và Cursor. `GOVIET_HARNESS_TRACE=1` ghi trace
+phím của riêng ô thử ra stderr để chẩn đoán; không ghi nội dung ứng dụng khác.
+
 Bài stress chuyển focus: gửi burst dài vào `SlowHarness`, mở ngay
 `FastHarness` khi hàng đợi còn bận. Slow harness phải nhận đủ kết quả;
 fast harness phải rỗng.

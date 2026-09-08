@@ -74,6 +74,13 @@ Câu mẫu: `Toàn thể nhân dân Việt Nam quyết tâm giữ vững độc 
   Thử thêm `2 chuts `, xóa rồi gõ lại, giữ Shift để gõ chữ hoa, và vừa gõ
   vừa chuyển app. Harness phải thử cả Fast/Slow/Selection với khoảng cách
   phím 0, 1.000 và 25.000 µs; đặt timeout đủ cho chuỗi gõ và hàng đợi xả hết.
+- **Hồi quy 0.2.7 — chữ a và Command**: gõ chậm rồi gõ nhanh
+  `as casc cacs af ar ax aj aan awn aans awns` →
+  `á các các à ả ã ạ ân ăn ấn ắn`. Ngay sau `casc`, nhấn một lần
+  từng tổ hợp ⌘A, ⌘C, ⌘V; chữ `các` phải còn nguyên. Thử ⌘Tab ngay
+  khi vừa đặt dấu, cả khi giữ Command và khi nhả giữa các tổ hợp.
+  Bản 0.2.8 hoàn tác việc chuyển toàn bộ phím thường sang hàng đợi ở 0.2.7;
+  lỗi mất chữ đầu gián đoạn ban đầu vẫn cần kiểm tra trực tiếp từng ứng dụng.
 - **Đổi app khi hàng đợi còn bận**: trong app `.slow`, gõ burst hoặc
   expand macro dài, rồi chuyển ngay sang app khác → phần thay thế và phím
   đã hoãn phải chỉ đi vào process ban đầu; app mới không được nhận

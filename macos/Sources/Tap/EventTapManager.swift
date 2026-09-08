@@ -196,24 +196,10 @@ final class EventTapManager {
         return EventTextDecoder.scalarForEngine(units: units, length: length)
     }
 
-    /// Keep compatibility keys and edits on the same delivery path, including
-    /// ordinary letters typed before the first replacement in a word.
+    /// Preserve physical input ordering while slow replacement events are
+    /// paced on TextInjector's serial worker.
     private func passOrDefer(_ event: CGEvent) -> Unmanaged<CGEvent>? {
-        let state = RuntimeState.shared.processingSnapshot
-        let eventProcessID = EventRouting.processID(
-            rawValue: event.getIntegerValueField(.eventTargetUnixProcessID)
-        )
-        let forceSerialDelivery = EventRouting.shouldSerializeKey(
-            isKeyboardEvent: event.type == .keyDown || event.type == .keyUp,
-            hasSystemModifiers: !event.flags.intersection([
-                .maskCommand, .maskControl, .maskSecondaryFn,
-            ]).isEmpty,
-            shouldProcess: state.shouldProcess,
-            strategy: state.strategy,
-            expectedProcessID: state.frontProcessID,
-            eventProcessID: eventProcessID
-        )
-        if TextInjector.deferEventIfNeeded(event, forceSerialDelivery: forceSerialDelivery) {
+        if TextInjector.deferEventIfNeeded(event) {
             return nil
         }
         return Unmanaged.passUnretained(event)

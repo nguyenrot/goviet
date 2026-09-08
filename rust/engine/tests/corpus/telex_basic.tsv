@@ -48,3 +48,10 @@ dduooir	đuổi
 1 xisu	1 xíu
 1 xius 2 chuts	1 xíu 2 chút
 1 xius 1 xius 1 xius	1 xíu 1 xíu 1 xíu
+# a-family regressions reported after the macOS injection change in 0.2.7.
+as	á
+casc	các
+cacs	các
+casc cacs cas	các các cá
+af ar ax aj	à ả ã ạ
+aan awn aans awns	ân ăn ấn ắn

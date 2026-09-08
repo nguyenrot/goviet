@@ -14,20 +14,4 @@ enum EventRouting {
         guard let expected, let actual else { return true }
         return expected == actual
     }
-
-    /// Only ordinary keys with a known destination can share the injector's
-    /// process-targeted stream. Shortcuts/pointer events retain system routing;
-    /// the scheduler still defers them whenever a replacement is pending.
-    static func shouldSerializeKey(
-        isKeyboardEvent: Bool,
-        hasSystemModifiers: Bool,
-        shouldProcess: Bool,
-        strategy: InjectionStrategy,
-        expectedProcessID: pid_t?,
-        eventProcessID: pid_t?
-    ) -> Bool {
-        isKeyboardEvent && !hasSystemModifiers && shouldProcess
-            && strategy.usesSerialDelivery && eventProcessID != nil
-            && isSameProcess(expected: expectedProcessID, actual: eventProcessID)
-    }
 }

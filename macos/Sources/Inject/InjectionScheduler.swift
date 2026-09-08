@@ -1,6 +1,6 @@
 import Foundation
 
-/// Serializes compatibility input outside the event-tap callback. `pending` is
+/// Serializes slow injection outside the event-tap callback. `pending` is
 /// incremented before the callback returns, so later physical events can be
 /// consumed and replayed behind the replacement that logically precedes them.
 final class InjectionScheduler: @unchecked Sendable {
@@ -27,8 +27,8 @@ final class InjectionScheduler: @unchecked Sendable {
         lock.withLock { pending }
     }
 
-    /// Schedule when forced (compatibility keys/edits) or when another injection
-    /// is already queued. Returns false when the caller should execute inline.
+    /// Schedule when forced (the slow strategy) or when another injection is
+    /// already queued. Returns false when the caller should execute inline.
     func schedule(
         force: Bool,
         operation: @escaping @Sendable () -> Void

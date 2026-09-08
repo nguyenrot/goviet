@@ -13,7 +13,7 @@ final class AppProfilesTests: XCTestCase {
         )
         XCTAssertEqual(
             AppProfiles.strategy(for: "com.tinyspeck.slackmacgap", overrides: [:]),
-            .slow
+            .fast
         )
         XCTAssertEqual(
             AppProfiles.strategy(for: "com.todesktop.230313mzl4w4u92", overrides: [:]),

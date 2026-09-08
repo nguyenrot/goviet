@@ -26,15 +26,28 @@ enum SelfTest {
         ) { note in
             let s = (note.object as? String) ?? ""
             let delayUS = (note.userInfo?["delay_us"] as? NSNumber)?.uint32Value ?? 25_000
+            let physicalKeys = (note.userInfo?["physical_keys"] as? NSNumber)?.boolValue ?? false
             log.info("selftest received \(s.count, privacy: .public) chars")
             guard !s.isEmpty else { return }
-            DispatchQueue.global(qos: .userInitiated).async { typeString(s, delayUS: delayUS) }
+            DispatchQueue.global(qos: .userInitiated).async {
+                typeString(s, delayUS: delayUS, physicalKeys: physicalKeys)
+            }
         }
     }
 
-    private static func typeString(_ s: String, delayUS: UInt32) {
-        let source = CGEventSource(stateID: .privateState)
-        for ch in s {
+    private static func typeString(_ s: String, delayUS: UInt32, physicalKeys: Bool) {
+        let source = CGEventSource(stateID: physicalKeys ? .hidSystemState : .privateState)
+        let tap: CGEventTapLocation = physicalKeys ? .cghidEventTap : .cgSessionEventTap
+        var characters = s.makeIterator()
+        while let ch = characters.next() {
+            // A command token tests the real modifier down/key down/key up/
+            // modifier up sequence, including system Cmd+Tab (⌘⇥).
+            if ch == "⌘", let key = characters.next(),
+               let keycode = key == "⇥" ? CGKeyCode(48) : ansiKeycodes[key.lowercased()] {
+                postCommand(keycode: keycode, character: key, source: source, tap: tap)
+                if delayUS > 0 { usleep(delayUS) }
+                continue
+            }
             let vk: CGKeyCode
             switch ch {
             case "⌫": vk = 51
@@ -49,18 +62,47 @@ enum SelfTest {
             guard let down = CGEvent(keyboardEventSource: source, virtualKey: vk, keyDown: true),
                   let up = CGEvent(keyboardEventSource: source, virtualKey: vk, keyDown: false)
             else { continue }
+            down.flags = ch.isUppercase ? .maskShift : []
+            up.flags = down.flags
             if !["⌫", "⎋", "⏎", "←", "→", "↓", "↑"].contains(ch) {
                 var units = Array(String(ch).utf16)
                 down.keyboardSetUnicodeString(stringLength: units.count, unicodeString: &units)
                 up.keyboardSetUnicodeString(stringLength: units.count, unicodeString: &units)
             }
-            down.post(tap: .cgSessionEventTap)
-            up.post(tap: .cgSessionEventTap)
+            down.post(tap: tap)
+            if physicalKeys { usleep(10_000) }
+            up.post(tap: tap)
             if delayUS > 0 {
                 usleep(delayUS)
             }
         }
         log.info("selftest done typing")
+    }
+
+    private static func postCommand(
+        keycode: CGKeyCode,
+        character: Character,
+        source: CGEventSource?,
+        tap: CGEventTapLocation
+    ) {
+        guard let modifierDown = CGEvent(keyboardEventSource: source, virtualKey: 55, keyDown: true),
+              let down = CGEvent(keyboardEventSource: source, virtualKey: keycode, keyDown: true),
+              let up = CGEvent(keyboardEventSource: source, virtualKey: keycode, keyDown: false),
+              let modifierUp = CGEvent(keyboardEventSource: source, virtualKey: 55, keyDown: false)
+        else { return }
+        modifierDown.type = .flagsChanged
+        modifierDown.flags = .maskCommand
+        down.flags = .maskCommand
+        up.flags = .maskCommand
+        modifierUp.type = .flagsChanged
+        modifierUp.flags = []
+        var units = Array((character == "⇥" ? "\t" : String(character)).utf16)
+        down.keyboardSetUnicodeString(stringLength: units.count, unicodeString: &units)
+        up.keyboardSetUnicodeString(stringLength: units.count, unicodeString: &units)
+        for event in [modifierDown, down, up, modifierUp] {
+            event.post(tap: tap)
+            usleep(10_000)
+        }
     }
 
     // Match physical ANSI keys as well as their Unicode payload. Using keycode
