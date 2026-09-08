@@ -39,6 +39,7 @@ private final class InjectionRequest: @unchecked Sendable {
         self.slowDelayUS = slowDelayUS
         self.targetProcessID = targetProcessID
         if let originalEvent, let copy = originalEvent.copy() {
+            InjectionEventSource.prepareForReplay(copy)
             copy.setIntegerValueField(.eventSourceUserData, value: kGoVietEventMarker)
             self.originalEvent = SendableEvent(copy)
         } else {
@@ -101,6 +102,7 @@ enum TextInjector {
     static func deferEventIfNeeded(_ event: CGEvent) -> Bool {
         guard scheduler.hasPending else { return false }
         guard let copy = event.copy() else { return false }
+        InjectionEventSource.prepareForReplay(copy)
         copy.setIntegerValueField(.eventSourceUserData, value: kGoVietEventMarker)
         let boxed = SendableEvent(copy)
         let targetProcessID = deferredTargetProcessID(for: event)
@@ -119,7 +121,7 @@ enum TextInjector {
         postGlobally: Bool
     ) {
         let context = PostingContext(
-            source: CGEventSource(stateID: .privateState),
+            source: InjectionEventSource.make(),
             proxy: proxy,
             postGlobally: postGlobally,
             targetProcessID: request.targetProcessID

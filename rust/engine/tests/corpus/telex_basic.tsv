@@ -48,6 +48,13 @@ dduooir	đuổi
 1 xisu	1 xíu
 1 xius 2 chuts	1 xíu 2 chút
 1 xius 1 xius 1 xius	1 xíu 1 xíu 1 xíu
+# Consecutive replacements must keep c/x/t/h, including immediately after a tone.
+cos	có
+taoj	tạo
+huongws	hướng
+huwowngs	hướng
+cos xius taoj huongws	có xíu tạo hướng
+cos cos cos	có có có
 # a-family regressions reported after the macOS injection change in 0.2.7.
 as	á
 casc	các

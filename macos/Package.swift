@@ -27,6 +27,7 @@ let package = Package(
             sources: [
                 "Inject/AppProfiles.swift",
                 "Inject/EventRouting.swift",
+                "Inject/InjectionEventSource.swift",
                 "Inject/InjectionScheduler.swift",
                 "Inject/TextInjectionPlan.swift",
                 "State/HotkeyDetector.swift",

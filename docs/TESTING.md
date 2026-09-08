@@ -81,6 +81,19 @@ Câu mẫu: `Toàn thể nhân dân Việt Nam quyết tâm giữ vững độc 
   khi vừa đặt dấu, cả khi giữ Command và khi nhả giữa các tổ hợp.
   Bản 0.2.8 hoàn tác việc chuyển toàn bộ phím thường sang hàng đợi ở 0.2.7;
   lỗi mất chữ đầu gián đoạn ban đầu vẫn cần kiểm tra trực tiếp từng ứng dụng.
+- **PressAndHold / mất phụ âm đầu**: trên bàn phím thật, gõ liên tục
+  `cos xius taoj huongws ` → `có xíu tạo hướng ` trong ô chat Cursor và
+  VS Code Copilot. Nhả từng phím, thử cả ngay sau một từ vừa đặt dấu.
+  Không được tự xuất hiện bảng chọn dấu macOS (`õ ó ò…` kèm số) khi không
+  giữ phím. Nếu bảng xuất hiện, ghi nhận phím trước đó và việc nhả phím;
+  thử tiếp `s` để kiểm tra có mất `c` trong `có` hay không. Thử riêng giữ
+  `o` có chủ ý để phân biệt với mất sự kiện key-up.
+  Nguồn sự kiện của injector phải có suppression interval bằng 0 và cho
+  phép keyboard/mouse/system events ở cả hai suppression state; áp dụng
+  cả cho bản sao phím hoãn và phím phân cách được forward. XCTest kiểm
+  tra các thuộc tính này trên CGEvent thật và bảo toàn modifier/Unicode.
+  Đây là biện pháp loại bỏ nguy cơ chặn phím thật; test bằng CGEvent giả
+  không chứng minh bảng PressAndHold trên bàn phím thật đã hết lỗi.
 - **Đổi app khi hàng đợi còn bận**: trong app `.slow`, gõ burst hoặc
   expand macro dài, rồi chuyển ngay sang app khác → phần thay thế và phím
   đã hoãn phải chỉ đi vào process ban đầu; app mới không được nhận
